@@ -216,6 +216,16 @@ html.js .hero__claim [data-line] { overflow: hidden; display: block; }
   gap: clamp(20px, 4vw, 64px);
   align-items: center;
   width: 100%;
+  /* 给右侧取景导航条让位，避免卡片压到 rail */
+  padding-right: var(--rail-w);
+}
+/* 对话舞台激活时收起 QUEST HUD，避免压住输入条 */
+.interaction-hud {
+  transition: opacity 400ms var(--ease-out);
+}
+html[data-talk="1"] .interaction-hud {
+  opacity: 0;
+  pointer-events: none;
 }
 /* 左半留空给角色；halo 在她脸周 */
 .s-talk__stage {

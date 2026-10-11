@@ -73,6 +73,7 @@ export function initV2(): () => void {
           const on = en.isIntersecting && en.intersectionRatio > 0.25
           target = on ? -0.16 * window.innerWidth : 0
           win.__talkActive = on
+          root.dataset.talk = on ? '1' : '0'
         }
       },
       { threshold: [0, 0.25, 0.5] },

@@ -552,6 +552,11 @@ export function initAskbar(hooks: AskbarHooks): () => void {
     destroyers.push(() => btn.removeEventListener('click', onHint))
   })
 
+  // v2：对话舞台首条问候，避免空卡
+  if (thread && thread.children.length === 0) {
+    appendBubble('豆包', '嗨，我是豆包。把想法说给我，我接着聊。', 'ai')
+  }
+
   // 空格聚焦（非输入态）
   const onSpaceFocus = (e: KeyboardEvent): void => {
     if (e.code !== 'Space') return
