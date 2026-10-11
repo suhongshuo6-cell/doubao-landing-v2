@@ -23,29 +23,29 @@ export interface EyeSpec {
 }
 
 export const FACE_EXPR = {
-  /** 画面左侧那只眼（她的右眼） */
+  /** 画面左侧那只眼（她的右眼）—— v2 新脸重新标定 */
   eyeL: {
-    top: [n(450, 177), n(515, 141), n(587, 175)],
-    bot: [n(450, 177), n(515, 193), n(587, 175)],
-    lidSkinPx: 38,
-    lidRgb: [[158, 108, 94], [170, 122, 108]],
+    top: [n(501, 311), n(544, 293), n(588, 319)],
+    bot: [n(501, 311), n(541, 326), n(588, 319)],
+    lidSkinPx: 24,
+    lidRgb: [[232, 196, 182], [236, 200, 186]],
   } satisfies EyeSpec,
-  /** 画面右侧那只眼（头部倾斜，眼裂约 -18°） */
+  /** 画面右侧那只眼（她的左眼） */
   eyeR: {
-    top: [n(763, 138), n(822, 82), n(893, 95)],
-    bot: [n(763, 138), n(830, 136), n(893, 95)],
-    lidSkinPx: 36,
-    lidRgb: [[184, 133, 118], [176, 124, 108]],
+    top: [n(702, 308), n(743, 277), n(787, 290)],
+    bot: [n(702, 308), n(744, 312), n(787, 290)],
+    lidSkinPx: 23,
+    lidRgb: [[236, 200, 186], [232, 196, 182]],
   } satisfies EyeSpec,
   /** 唇缝：左嘴角 / 中点 / 右嘴角 */
-  mouth: [n(600, 447), n(722, 450), n(847, 403)] as readonly [P, P, P],
+  mouth: [n(577, 493), n(654, 503), n(737, 481)] as readonly [P, P, P],
   /** 腮红中心与半径（px） */
-  cheekL: { c: n(500, 262), r: [82, 52] as const },
-  cheekR: { c: n(885, 214), r: [74, 48] as const },
+  cheekL: { c: n(526, 368), r: [52, 33] as const },
+  cheekR: { c: n(774, 365), r: [47, 31] as const },
   /** 视线最大位移（px，原图尺度） */
-  gazePx: [13.2, 6.6] as const,  // slightly more obvious follow
+  gazePx: [8.4, 4.2] as const,
   /** 说话时下唇最大下移（px） */
-  mouthOpenPx: 20,
+  mouthOpenPx: 13,
 }
 
 /** 三点 → y = a x² + b x + c（像素坐标） */
