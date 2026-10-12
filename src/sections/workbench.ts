@@ -38,9 +38,9 @@ export function initWorkbench(_loop: FrameLoop): () => void {
 
   // 标题区
   const headTitle = section.querySelector('.s-cap__title')
-  if (headTitle) headTitle.textContent = '同一工作台，五种形态。'
+  if (headTitle) headTitle.textContent = '把想法，变成下一步。'
   const headEyebrow = section.querySelector('.s-cap__head .eyebrow')
-  if (headEyebrow) headEyebrow.textContent = '能力工作台'
+  if (headEyebrow) headEyebrow.textContent = '03 / 亲手试试'
 
   // Tabs
   let tabsBar = section.querySelector<HTMLElement>('.wb-tabs')

@@ -18,7 +18,7 @@ export function runHeroIntro(): () => void {
   if (!hero || motionPrefs.reduced) {
     root.classList.add('intro-done')
     status?.removeAttribute('hidden')
-    if (status) status.textContent = '已连接'
+    if (status) status.textContent = '互动演示'
     claim?.classList.add('is-split')
     ask?.classList.add('is-in')
     hints?.classList.add('is-in')
@@ -51,7 +51,7 @@ export function runHeroIntro(): () => void {
   if (wash) gsap.set(wash, { filter: 'blur(14px)', opacity: 0.85 })
   if (status) {
     status.hidden = false
-    status.textContent = '正在连接豆包…'
+    status.textContent = '互动演示'
     status.classList.add('is-connecting')
   }
 
@@ -61,7 +61,7 @@ export function runHeroIntro(): () => void {
       root.classList.remove('intro-playing')
       root.classList.add('intro-done')
       if (status) {
-        status.textContent = '已连接'
+        status.textContent = '互动演示'
         status.classList.remove('is-connecting')
         status.classList.add('is-connected')
         window.setTimeout(() => status.classList.add('is-fade'), 1600)

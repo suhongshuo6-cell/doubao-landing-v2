@@ -8,7 +8,6 @@
  */
 
 import gsap from 'gsap'
-import { ScrollTrigger } from './lenisSetup'
 import { createSpring, SPRING } from '../lib/spring'
 import { motionPrefs } from '../lib/motionPrefs'
 import type { FrameLoop } from '../lib/frameLoop'
@@ -23,7 +22,6 @@ export function initSpectacle({ loop }: SpectacleOpts): () => void {
   if (!motionPrefs.reduced) {
     destroyers.push(initMagneticButtons(loop))
     destroyers.push(initStaggerReveal())
-    destroyers.push(initSectionBands())
   }
   destroyers.push(initProductCounters())
   destroyers.push(enhanceCursorGlow(loop))
@@ -145,62 +143,6 @@ function initStaggerReveal(): () => void {
       t.scrollTrigger?.kill()
       t.kill()
     }
-  }
-}
-
-/* ─── 章节光带 ─── */
-function initSectionBands(): () => void {
-  const band = document.createElement('div')
-  band.className = 'spectacle-band'
-  band.setAttribute('aria-hidden', 'true')
-  document.body.appendChild(band)
-
-  const sections = Array.from(
-    document.querySelectorAll<HTMLElement>('main > section[id], #footer'),
-  )
-  let lastId = ''
-  let cooldown = 0
-
-  const triggers = sections.map((sec) =>
-    ScrollTrigger.create({
-      trigger: sec,
-      start: 'top 55%',
-      end: 'bottom 45%',
-      onEnter: () => fire(sec.id || 'sec'),
-      onEnterBack: () => fire(sec.id || 'sec'),
-    }),
-  )
-
-  function fire(id: string): void {
-    const now = performance.now()
-    if (id === lastId || now < cooldown) return
-    lastId = id
-    cooldown = now + 680
-    band.classList.remove('is-fire')
-    void band.offsetWidth
-    band.classList.add('is-fire')
-    spawnGather(band)
-  }
-
-  return () => {
-    for (const t of triggers) t.kill()
-    band.remove()
-  }
-}
-
-function spawnGather(host: HTMLElement): void {
-  if (motionPrefs.reduced) return
-  const n = 10
-  for (let i = 0; i < n; i++) {
-    const p = document.createElement('i')
-    p.className = 'spectacle-band__dot'
-    const angle = (i / n) * Math.PI * 2
-    const dist = 40 + Math.random() * 70
-    p.style.setProperty('--dx', `${Math.cos(angle) * dist}px`)
-    p.style.setProperty('--dy', `${Math.sin(angle) * dist * 0.35}px`)
-    p.style.animationDelay = `${i * 18}ms`
-    host.appendChild(p)
-    window.setTimeout(() => p.remove(), 900)
   }
 }
 

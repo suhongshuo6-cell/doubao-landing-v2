@@ -7,6 +7,7 @@ import './styles/spectacle.css'
 import './styles/gen3.css'
 import './styles/stage.css'
 import './styles/v2.css'
+import './styles/refinement.css'
 
 import gsap from 'gsap'
 
@@ -25,12 +26,9 @@ import { initV2 } from './sections/v2'
 import { createStage2d } from './fx/stage2d'
 import { initAskbar } from './ui/askbar'
 import { initSpectacle } from './motion/spectacle'
-import { initPolymorphCursor } from './motion/cursor'
-import { initScrambleReveal } from './motion/scramble'
 import { initVelocityMarquee } from './motion/marquee'
 import { initChapterGates } from './motion/gates'
 import { initEaster } from './fx/easter'
-import { initChapters } from './motion/chapters'
 import { initFeedback } from './ui/feedback'
 import type { CharacterRig } from './three/character'
 
@@ -90,12 +88,9 @@ function boot(): void {
   initNav(scroll, loop)
   initReveal()
   initContentSections({ scroll, loop })
-  initV2()
+  initV2(scroll)
   initSpectacle({ loop })
-  initPolymorphCursor(loop)
   initFeedback(loop)
-  initChapters({ loop, scroll })
-  initScrambleReveal()
   initVelocityMarquee(scroll, loop)
 
   /* Gen2：滚动区带 data-zone → 角色层对比度；视差；转场光洗 */
@@ -250,7 +245,7 @@ function boot(): void {
     if (!(canvasEl instanceof HTMLCanvasElement)) throw new Error('缺少 #stage canvas')
     const canvas: HTMLCanvasElement = canvasEl
 
-    const stage = createStage(canvas)
+    const stage = createStage(canvas, { portraitOnly: !force })
     // 路径 B 的立绘板挂在相机下（天然屏幕对齐）。相机必须进场景图，
     // 否则渲染器的 traverse 到不了它的子节点，角色层会整个不显示。
     stage.scene.add(stage.camera)
@@ -274,7 +269,7 @@ function boot(): void {
     /* ---- 角色：双轨资产自动探测 ---- */
     let character: CharacterRig | null = null
 
-    createCharacter({
+    if (force) createCharacter({
       renderer: stage.renderer,
       camera: stage.camera,
       force,
@@ -310,6 +305,12 @@ function boot(): void {
         document.documentElement.dataset.character = 'none'
         document.dispatchEvent(new CustomEvent('doubao:stage-failed'))
       })
+
+    if (!force) {
+      rig.setIntro(1)
+      document.documentElement.dataset.character = 'video'
+      document.dispatchEvent(new CustomEvent('doubao:stage-ready'))
+    }
 
     /* ---- 开场：dolly in + 900ms 景深虚化消散 ---- */
     let introTween: gsap.core.Tween | null = null
@@ -362,16 +363,8 @@ function boot(): void {
       pinchSuccessCount += 1
       say('手感刚好。再捏一下？')
       fx?.mascot.bounce(1.35)
-      fx?.react('cheer', x, y)
-      fx?.particles.burst(x, y, {
-        n: 42,
-        speedMin: 3,
-        speedMax: 14,
-        big: true,
-        gravity: 0.06,
-        colors: ['#FF5A3C', '#FFB020', '#7EB6FF', '#F9A8D4', '#FDE68A'],
-      })
-      rootEl.classList.add('pinch-reward-shake', 'pinch-egg')
+      fx?.particles.ring(x, y, '#e96950')
+      rootEl.classList.add('pinch-egg')
       window.setTimeout(() => rootEl.classList.remove('pinch-reward-shake'), 600)
       window.setTimeout(() => rootEl.classList.remove('pinch-egg'), 2600)
       const hint = document.getElementById('heroPinchHint')
@@ -462,7 +455,7 @@ function boot(): void {
         trackPointer(event)
         // 拖动超过 12px 视为滚动/转视角，取消捏脸
         if (
-          pressOrigin &&
+          motionPrefs.coarse && pressOrigin &&
           Math.hypot(event.clientX - pressOrigin.x, event.clientY - pressOrigin.y) > 12
         ) {
           cancelPress()
@@ -479,6 +472,7 @@ function boot(): void {
         // 关键：触摸端第一次接触就是 pointerdown，没有 pointermove。
         // 不在这里取坐标的话 pointerInside 永远是 false，捏脸在手机上完全不会触发。
         trackPointer(event)
+        if (!faceLayer?.isOnFace(event.clientX, event.clientY)) return
         pressOrigin = { x: event.clientX, y: event.clientY }
         if (motionPrefs.coarse) {
           // 触摸端：长按 = 捏脸（规格第八节）。不设长按的话一滑动就会误捏。
@@ -508,8 +502,6 @@ function boot(): void {
         tapPulse = 1
         blip(430)
         say('轻一点。')
-      } else if (framing > 0.72) {
-        say(framing > 0.9 ? '脚也看到了。' : '镜头还在继续。')
       }
     }, { passive: true })
 
@@ -543,7 +535,6 @@ function boot(): void {
 
     /* ---- 主循环：唯一的一帧 ---- */
     let lastNode = -1
-    let talkScale = 1
 
     loop.add((dt) => {
       const state = scroll.read()
@@ -578,29 +569,23 @@ function boot(): void {
       }
       if (!pressing) pinchHoldMs = 0
       lastPressing = pressing
-      if (canvas) {
-        const breathe = Math.sin(performance.now() * 0.00135) * 0.7
-        // v3 构图：对话舞台进入视口时角色居中、微微放大上移（脸从卡片后透出），不再左移分屏
-        const win = window as unknown as { __talkShiftX?: number; __talkActive?: boolean }
-        const shiftX = win.__talkShiftX ?? 0
-        const talkOn = win.__talkActive === true && !motionPrefs.reduced
-        talkScale += ((talkOn ? 1.16 : 1) - talkScale) * Math.min(1, dt * 2.6)
-        canvas.style.transform =
-          `translate3d(${shiftX.toFixed(2)}px, ${breathe.toFixed(2)}px, 0) scale(${talkScale.toFixed(4)})`
-      }
+
 
       // ---- 面部命中与捏脸（视频脸：源坐标椭圆命中）----
       hoveringFace = false
-      if (faceLayer && pointerInside && rig.framing < PINCH_GATE) {
+      if (faceLayer && pointerInside && faceLayer.visible) {
         hoveringFace = faceLayer.isOnFace(pointerClientX, pointerClientY)
       }
 
       if (faceLayer) {
         if (hoveringFace) {
           // 触感：悬停轻微凹陷，按住更深，轻点给一个即时脉冲
-          const base = pressing ? 1.25 : 0.45
+          const base = pressing ? 0.6 : 0
           const strength = Math.min(2.6, base * pinchBoost + tapPulse * 0.9)
-          faceLayer.setPress({ x: ndc.x * 0.5 + 0.5, y: ndc.y * 0.5 + 0.5 }, strength)
+          const x = pressOrigin ? pressOrigin.x / window.innerWidth : ndc.x * .5 + .5
+          const y = pressOrigin ? 1 - pressOrigin.y / window.innerHeight : ndc.y * .5 + .5
+          faceLayer.setPress({ x, y }, strength)
+          faceLayer.setDrag(pressOrigin ? (pointerClientX - pressOrigin.x) / window.innerWidth : 0, pressOrigin ? (pressOrigin.y - pointerClientY) / window.innerHeight : 0)
         } else {
           faceLayer.setPress(null, 0)
         }
@@ -630,7 +615,8 @@ function boot(): void {
       }
 
       updateQuality(dt)
-      stage.render()
+      canvas.style.visibility = (character || faceLayer?.visible) ? 'visible' : 'hidden'
+      if (character || faceLayer?.visible) stage.render()
     })
 
     // 开场推近期间不做画质降档，否则会把"虚化"误判成掉帧
@@ -677,8 +663,8 @@ function boot(): void {
           frames = 0
           acc = 0
           const s = {
-            kind: character?.kind ?? null,
-            ready: character?.ready ?? false,
+            kind: character?.kind ?? 'video',
+            ready: character?.ready ?? Boolean(faceLayer),
             framing: Number(rig.framing.toFixed(3)),
             node: rig.nodeIndex,
             yawDeg: Number(((rig.yaw * 180) / Math.PI).toFixed(1)),
@@ -722,8 +708,8 @@ function boot(): void {
           progress: Number(scroll.read().progress.toFixed(4)),
           scrollY: Math.round(window.scrollY),
           node: rig.nodeIndex,
-          kind: character?.kind ?? null,
-          ready: character?.ready ?? false,
+          kind: character?.kind ?? 'video',
+          ready: character?.ready ?? Boolean(faceLayer),
           renderScale: stage.renderScale,
           drawCalls: stage.renderer.info.render.calls,
         }),

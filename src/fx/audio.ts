@@ -44,7 +44,7 @@ export interface FxAudio {
 export function createFxAudio(): FxAudio {
   let ctx: AudioContext | null = null
   let master: GainNode | null = null
-  let muted = false
+  let muted = true
 
   const ensure = (): AudioContext | null => {
     if (ctx) {

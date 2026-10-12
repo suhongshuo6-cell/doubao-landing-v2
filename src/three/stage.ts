@@ -102,8 +102,8 @@ function buildEnvironmentTexture(renderer: THREE.WebGLRenderer): THREE.Texture {
   return target.texture
 }
 
-export function createStage(canvas: HTMLCanvasElement): Stage {
-  RectAreaLightUniformsLib.init()
+export function createStage(canvas: HTMLCanvasElement, { portraitOnly = false } = {}): Stage {
+  if (!portraitOnly) RectAreaLightUniformsLib.init()
 
   const renderer = new THREE.WebGLRenderer({
     canvas,
@@ -121,7 +121,9 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
   const camera = new THREE.PerspectiveCamera(CAMERA_FOV, 16 / 9, 0.1, 120)
   camera.position.set(0, 0, 6)
 
-  const envTexture = buildEnvironmentTexture(renderer)
+  let envTexture: THREE.Texture | null = null
+  if (!portraitOnly) {
+  envTexture = buildEnvironmentTexture(renderer)
   scene.environment = envTexture
   // 注意：不设 scene.background —— 画布必须是透明的，背景交给 CSS
 
@@ -149,6 +151,7 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
   // 极弱的环境底光：只为了防止背光侧完全失去信息，强度必须小。
   const ambient = new THREE.HemisphereLight(0xffffff, 0xdfe3e8, 0.22)
   scene.add(ambient)
+  }
 
   let renderScale = 1
 
@@ -198,7 +201,7 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
     render: () => renderer.render(scene, camera),
     dispose() {
       canvas.removeEventListener('webglcontextlost', onLost)
-      envTexture.dispose()
+      envTexture?.dispose()
       scene.traverse((obj) => {
         const mesh = obj as THREE.Mesh
         if (mesh.geometry) mesh.geometry.dispose()

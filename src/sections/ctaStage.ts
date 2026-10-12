@@ -94,15 +94,12 @@ export function initCtaStage(): () => void {
   const goHero = (): void => {
     collapseTags()
     microFireworks()
-    document.getElementById('hero')?.scrollIntoView({
-      behavior: motionPrefs.reduced ? 'auto' : 'smooth',
-      block: 'start',
-    })
+    document.dispatchEvent(new CustomEvent('doubao:go-chat'))
     window.setTimeout(() => {
       const input = document.getElementById('askInput')
       const bar = document.getElementById('askbar')
       if (input instanceof HTMLInputElement) {
-        input.focus()
+        input.focus({ preventScroll: true })
         input.classList.add('is-pulse')
         bar?.classList.add('is-filled')
         window.setTimeout(() => {

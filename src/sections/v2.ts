@@ -1,145 +1,90 @@
-/**
- * sections/v2.ts — 「脸是主角」改版的交互控制器。
- *
- * 职责（全部是增量，不改既有模块）：
- *  1. 首屏安全边距动效：rimlight 跟随光标（中心透明不压眼）、极光/rimlight 滚过首屏淡出。
- *  2. 漂浮能力气泡 / 底部进入 CTA → 平滑滚到 #chatStage 并灌字。
- *  3. 对话舞台分屏：chatStage 进入视口时把固定 canvas 左移（talkShift），离开还原。
- *  4. 「她边说边吐字」联动：doubao:speaking → 脸周 halo 脉动 + 卡片描边；连接状态点。
- *  5. 剧场模式：输入聚焦时柔化四周聚光对话卡（不遮脸）。
- */
 import { motionPrefs } from '../lib/motionPrefs'
 import { hasDifyKey } from '../lib/difyClient'
 import { hasArkKey } from '../lib/doubaoClient'
+import type { ScrollController } from '../motion/lenisSetup'
 
-interface Win extends Window {
-  __askbarFill?: (text: string, autoSend?: boolean) => void
-  __talkShiftX?: number
-  __talkActive?: boolean
-}
-
-export function initV2(): () => void {
+export function initV2(scroll: ScrollController): () => void {
   const root = document.documentElement
-  const destroyers: Array<() => void> = []
-  const win = window as Win
-
-  /* ---------------- 1. rimlight 跟随光标 + 首屏淡出 ---------------- */
-  const rim = document.getElementById('heroRim')
-  const onMove = (e: PointerEvent): void => {
-    if (!rim) return
-    rim.style.setProperty('--rx', `${((e.clientX / window.innerWidth) * 100).toFixed(2)}%`)
-    rim.style.setProperty('--ry', `${((e.clientY / window.innerHeight) * 100).toFixed(2)}%`)
-  }
-  if (rim && !motionPrefs.reduced) {
-    window.addEventListener('pointermove', onMove, { passive: true })
-    destroyers.push(() => window.removeEventListener('pointermove', onMove))
-  }
-
-  const syncHeroLive = (): void => {
-    const live = window.scrollY < window.innerHeight * 0.7
-    root.dataset.heroLive = live ? '1' : '0'
-    root.dataset.aurora = live ? 'on' : 'off'
-  }
-  syncHeroLive()
-  window.addEventListener('scroll', syncHeroLive, { passive: true })
-  destroyers.push(() => window.removeEventListener('scroll', syncHeroLive))
-
-  /* ---------------- 2. 气泡 / 进入 CTA → 滚到对话舞台并灌字 ---------------- */
+  const cleaners: Array<() => void> = []
   const stage = document.getElementById('chatStage')
   const goToTalk = (seed?: string): void => {
-    if (!stage) return
-    stage.scrollIntoView({ behavior: motionPrefs.reduced ? 'auto' : 'smooth', block: 'center' })
-    if (seed) {
-      window.setTimeout(() => win.__askbarFill?.(seed, false), motionPrefs.reduced ? 0 : 520)
-    }
+    if (stage) scroll.scrollTo(Math.max(0, stage.offsetTop - (document.getElementById('nav')?.offsetHeight ?? 76)), { duration: .9 })
+    if (seed) window.setTimeout(() => {
+      const win = window as unknown as { __askbarFill?: (text: string, autoSend?: boolean) => void }
+      win.__askbarFill?.(seed, false)
+    }, motionPrefs.reduced ? 0 : 500)
   }
-  document.querySelectorAll<HTMLButtonElement>('[data-talk-seed]').forEach((btn) => {
-    const on = (): void => goToTalk(btn.dataset.talkSeed)
-    btn.addEventListener('click', on)
-    destroyers.push(() => btn.removeEventListener('click', on))
+  document.querySelectorAll<HTMLButtonElement>('[data-talk-seed]').forEach(btn => {
+    const click = (): void => goToTalk(btn.dataset.talkSeed)
+    btn.addEventListener('click', click)
+    cleaners.push(() => btn.removeEventListener('click', click))
   })
   const enter = document.getElementById('heroEnter')
-  const onEnter = (): void => goToTalk()
-  enter?.addEventListener('click', onEnter)
-  destroyers.push(() => enter?.removeEventListener('click', onEnter))
-
-  /* ---------------- 3. 对话舞台：角色居中（卡片居中构图，不再左移分屏） ---------------- */
-  let target = 0
-  let current = 0
-  if (stage && 'IntersectionObserver' in window) {
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const en of entries) {
-          const on = en.isIntersecting && en.intersectionRatio > 0.25
-          target = 0 // v3：居中构图，shift 恒 0；talkActive 仍驱动放大上移
-          win.__talkActive = on
-          root.dataset.talk = on ? '1' : '0'
-        }
-      },
-      { threshold: [0, 0.25, 0.5] },
-    )
-    io.observe(stage)
-    destroyers.push(() => io.disconnect())
-  }
-  let raf = 0
-  const tickShift = (): void => {
-    current += (target - current) * 0.08
-    if (Math.abs(target - current) < 0.5) current = target
-    win.__talkShiftX = current
-    raf = window.requestAnimationFrame(tickShift)
-  }
-  if (!motionPrefs.reduced) {
-    raf = window.requestAnimationFrame(tickShift)
-    destroyers.push(() => window.cancelAnimationFrame(raf))
-  } else {
-    // 减少动态：直接跳目标值
-    const ioSync = (): void => {
-      win.__talkShiftX = target
+  const enterTalk = (): void => goToTalk()
+  enter?.addEventListener('click', enterTalk)
+  cleaners.push(() => enter?.removeEventListener('click', enterTalk))
+  document.addEventListener('doubao:go-chat', enterTalk)
+  cleaners.push(() => document.removeEventListener('doubao:go-chat', enterTalk))
+  document.querySelectorAll<HTMLAnchorElement>('.nav a[href^="#"]').forEach(link => {
+    const navigate = (event: MouseEvent): void => {
+      const target = document.querySelector<HTMLElement>(link.hash)
+      if (!target) return
+      event.preventDefault()
+      scroll.scrollTo(Math.max(0, target.offsetTop - (document.getElementById('nav')?.offsetHeight ?? 76)), { duration: .9 })
     }
-    window.addEventListener('scroll', ioSync, { passive: true })
-    destroyers.push(() => window.removeEventListener('scroll', ioSync))
-  }
-
-  /* ---------------- 4. 说话联动 + 连接状态 ---------------- */
-  const onSpeaking = (e: Event): void => {
-    const on = (e as CustomEvent<{ speaking: boolean }>).detail?.speaking
-    root.dataset.speaking = on ? '1' : '0'
-  }
-  document.addEventListener('doubao:speaking', onSpeaking)
-  destroyers.push(() => document.removeEventListener('doubao:speaking', onSpeaking))
-
-  const dot = document.getElementById('talkDot')
-  const status = document.getElementById('talkStatus')
-  if (hasDifyKey()) {
-    dot?.classList.add('is-live')
-    if (status) status.textContent = '已连接 · Dify'
-  } else if (hasArkKey()) {
-    dot?.classList.add('is-live')
-    if (status) status.textContent = '已连接 · 方舟'
-  } else if (status) {
-    status.textContent = '本地演示'
-  }
-
-  /* ---------------- 5. 剧场模式 ---------------- */
-  const input = document.getElementById('askInput')
-  const onFocus = (): void => {
-    root.dataset.theatre = '1'
-  }
-  const onBlur = (): void => {
-    if (root.dataset.speaking !== '1') root.dataset.theatre = '0'
-  }
-  input?.addEventListener('focus', onFocus)
-  input?.addEventListener('blur', onBlur)
-  destroyers.push(() => {
-    input?.removeEventListener('focus', onFocus)
-    input?.removeEventListener('blur', onBlur)
+    link.addEventListener('click', navigate)
+    cleaners.push(() => link.removeEventListener('click', navigate))
   })
 
-  return () => {
-    for (const d of destroyers.reverse()) d()
-    delete root.dataset.speaking
-    delete root.dataset.theatre
-    win.__talkShiftX = 0
-    win.__talkActive = false
+  const motion = document.getElementById('motionToggle') as HTMLButtonElement | null
+  let paused = false
+  try { paused = sessionStorage.getItem('doubao-motion') === 'paused' } catch { /* private browsing */ }
+  const syncMotion = (): void => {
+    const staticMode = paused || motionPrefs.reduced
+    root.dataset.motion = staticMode ? 'paused' : 'playing'
+    motion?.setAttribute('aria-pressed', String(staticMode))
+    if (motion) {
+      motion.textContent = motionPrefs.reduced ? '已遵循减少动态设置' : staticMode ? '播放人物动态' : '暂停人物动态'
+      motion.disabled = motionPrefs.reduced
+    }
   }
+  const toggleMotion = (): void => {
+    paused = !paused
+    try { sessionStorage.setItem('doubao-motion', paused ? 'paused' : 'playing') } catch { /* optional */ }
+    syncMotion()
+  }
+  motion?.addEventListener('click', toggleMotion)
+  cleaners.push(() => motion?.removeEventListener('click', toggleMotion))
+  syncMotion()
+  const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+  mq.addEventListener('change', syncMotion)
+  cleaners.push(() => mq.removeEventListener('change', syncMotion))
+
+  const status = document.getElementById('talkStatus')
+  const dot = document.getElementById('talkDot')
+  let mode = hasDifyKey() ? 'Dify 已配置' : hasArkKey() ? '方舟已配置' : '本地示例'
+  const speaking = (event: Event): void => {
+    const on = Boolean((event as CustomEvent<{ speaking: boolean }>).detail?.speaking)
+    root.dataset.speaking = on ? '1' : '0'
+    if (status) status.textContent = on ? '正在回复…' : mode
+    dot?.classList.toggle('is-live', on)
+  }
+  const modeChanged = (event: Event): void => {
+    mode = (event as CustomEvent<string>).detail
+    if (status && root.dataset.speaking !== '1') status.textContent = mode
+  }
+  if (status) status.textContent = mode
+  document.addEventListener('doubao:speaking', speaking)
+  document.addEventListener('doubao:chat-mode', modeChanged)
+  cleaners.push(() => document.removeEventListener('doubao:speaking', speaking), () => document.removeEventListener('doubao:chat-mode', modeChanged))
+
+  const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('.nav-links a'))
+  const observer = new IntersectionObserver(entries => {
+    const active = entries.find(entry => entry.isIntersecting)
+    if (!active) return
+    links.forEach(link => link.classList.toggle('is-active', link.hash === `#${active.target.id}`))
+  }, { rootMargin: '-15% 0px -65% 0px' })
+  links.forEach(link => { const target = document.querySelector(link.hash); if (target) observer.observe(target) })
+  cleaners.push(() => observer.disconnect())
+  return () => cleaners.reverse().forEach(clean => clean())
 }

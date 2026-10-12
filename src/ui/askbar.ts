@@ -4,18 +4,11 @@
  * 高度用 GSAP 弹簧，勿跳。磁性入框。
  */
 import gsap from 'gsap'
-import { replyFake, getFakeHistory, rememberTurn, type FakeReply } from '../lib/fakeBrain'
+import { replyFake, getFakeHistory, rememberTurn, resetFakeMemory, type FakeReply } from '../lib/fakeBrain'
 import { chatArk, hasArkKey, ARK_SYSTEM_PROMPT, type ArkMessage } from '../lib/doubaoClient'
 import { chatDify, hasDifyKey } from '../lib/difyClient'
 import { motionPrefs } from '../lib/motionPrefs'
 import { EASE_IN } from '../motion/eases'
-
-const SEEDS: readonly string[] = [
-  '帮我把这周的周报写了',
-  '看看这张图里有什么',
-  '帮我安排一下今天',
-  '给我一个创意点子',
-]
 
 const FAKE_FILES = ['周报草稿.pdf', '会议纪要.docx', '截图.png', '数据表.xlsx'] as const
 
@@ -67,6 +60,15 @@ export function initAskbar(hooks: AskbarHooks): () => void {
   let lastUserText = ''
   let voiceHold = false
   let abort: AbortController | null = null
+  let generation = 0
+  const generationTimers = new Set<number>()
+  const syncSend = (): void => {
+    if (send) {
+      send.textContent = busy ? '■' : '↑'
+      send.setAttribute('aria-label', busy ? '停止回复' : '发送')
+    }
+    wrap?.setAttribute('aria-busy', String(busy))
+  }
   const destroyers: Array<() => void> = []
 
   const springHeight = (): void => {
@@ -136,10 +138,12 @@ export function initAskbar(hooks: AskbarHooks): () => void {
         copyBtn.type = 'button'
         copyBtn.className = 'ask-op'
         copyBtn.textContent = '复制'
-        copyBtn.addEventListener('click', () => {
-          const t = p?.textContent ?? ''
-          if (navigator.clipboard) void navigator.clipboard.writeText(t)
-          copyBtn.textContent = '已复制'
+        copyBtn.addEventListener('click', async () => {
+          const t = p?.innerText ?? ''
+          try {
+            await navigator.clipboard.writeText(t)
+            copyBtn.textContent = '已复制'
+          } catch { copyBtn.textContent = '复制失败' }
           window.setTimeout(() => {
             copyBtn.textContent = '复制'
           }, 1200)
@@ -209,13 +213,14 @@ export function initAskbar(hooks: AskbarHooks): () => void {
     el: HTMLElement,
   ): { push: (s: string) => void; finish: (followups?: string[]) => void; set: (s: string) => void } => {
     const p = el.querySelector('p')
+    const version = generation
     let shown = ''
     let queue = ''
     window.clearInterval(replyTimer)
     if (p) p.innerHTML = ''
 
     const tick = (): void => {
-      if (disposed || !p) return
+      if (disposed || !p || version !== generation) return
       if (!queue.length) return
       const take = queue.slice(0, Math.max(1, Math.min(3, Math.ceil(queue.length / 12))))
       queue = queue.slice(take.length)
@@ -229,20 +234,25 @@ export function initAskbar(hooks: AskbarHooks): () => void {
 
     return {
       push(s: string) {
+        if (version !== generation) return
         queue += s
         document.dispatchEvent(new CustomEvent('doubao:token'))
       },
       set(s: string) {
+        if (version !== generation) return
         queue = ''
         shown = s
         if (p) p.innerHTML = highlightHtml(s)
       },
       finish(followups?: string[]) {
+        if (version !== generation) return
         const drain = window.setInterval(() => {
+          if (version !== generation) { window.clearInterval(drain); return }
           if (!queue.length) {
             window.clearInterval(drain)
             window.clearInterval(replyTimer)
             busy = false
+            syncSend()
             updateContext()
             renderFollowups(followups ?? ['再细一点', '换个说法', '继续追问'])
             bounceAvatar()
@@ -250,6 +260,7 @@ export function initAskbar(hooks: AskbarHooks): () => void {
             setSpeaking(false, true)
           }
         }, 30)
+        generationTimers.add(drain)
       },
     }
   }
@@ -272,10 +283,13 @@ export function initAskbar(hooks: AskbarHooks): () => void {
   }
 
   const runFake = (userText: string, aiEl: HTMLElement | null): void => {
+    const version = generation
+    document.dispatchEvent(new CustomEvent('doubao:chat-mode', { detail: hasDifyKey() || hasArkKey() ? '连接失败 · 本地示例' : '本地示例' }))
     const fake: FakeReply = replyFake(userText)
     if (!aiEl) {
       showLegacyReply(fake.text)
       busy = false
+      syncSend()
       renderFollowups(fake.followups)
       return
     }
@@ -285,7 +299,7 @@ export function initAskbar(hooks: AskbarHooks): () => void {
     let lineIdx = 0
     let charIdx = 0
     const id = window.setInterval(() => {
-      if (disposed) {
+      if (disposed || version !== generation) {
         window.clearInterval(id)
         return
       }
@@ -305,6 +319,7 @@ export function initAskbar(hooks: AskbarHooks): () => void {
       streamer.push(line.slice(charIdx, charIdx + step))
       charIdx += step
     }, 26)
+    generationTimers.add(id)
   }
 
   const submit = async (preset?: string): Promise<void> => {
@@ -313,10 +328,13 @@ export function initAskbar(hooks: AskbarHooks): () => void {
     let raw = (preset ?? input.value).trim()
     if (attached && !raw) raw = `看看这个附件：${attached}`
     else if (attached) raw = `${raw}（附：${attached}）`
-    const text = raw || SEEDS[(Math.random() * SEEDS.length) | 0]!
+    if (!raw) return
+    const text = raw
+    const version = ++generation
     lastUserText = text
     const rect = bar.getBoundingClientRect()
     busy = true
+    syncSend()
     bar.classList.add('is-sending')
     wrap?.classList.add('is-sending')
     send?.classList.add('is-ready')
@@ -331,6 +349,7 @@ export function initAskbar(hooks: AskbarHooks): () => void {
     setSpeaking(true)
     appendBubble('你', text, 'user')
     input.value = ''
+    try { sessionStorage.removeItem('doubao-draft') } catch { /* optional */ }
     attached = null
     if (attachLabel) {
       attachLabel.textContent = ''
@@ -345,6 +364,7 @@ export function initAskbar(hooks: AskbarHooks): () => void {
     // 500ms 思考三点呼吸
     const think = appendBubble('豆包', '', 'think')
     await new Promise((r) => window.setTimeout(r, motionPrefs.reduced ? 80 : 500))
+    if (version !== generation || disposed) return
     document.dispatchEvent(new CustomEvent('doubao:thinking', { detail: { thinking: false } }))
     think?.remove()
     springHeight()
@@ -367,6 +387,8 @@ export function initAskbar(hooks: AskbarHooks): () => void {
             difyConversationId = id
           },
         })
+        if (version !== generation) return
+        document.dispatchEvent(new CustomEvent('doubao:chat-mode', { detail: 'Dify · 已回复' }))
         const answer = full.trim() || '（空响应）我换成本地助手继续帮你。'
         rememberTurn(text, answer)
         if (streamer) {
@@ -378,6 +400,7 @@ export function initAskbar(hooks: AskbarHooks): () => void {
         }
         return
       } catch (err) {
+        if (version !== generation) return
         console.info('[askbar] Dify 失败，尝试方舟 / 假智能', err)
         if (streamer) streamer.set('')
         // fall through to Ark / fake
@@ -395,6 +418,8 @@ export function initAskbar(hooks: AskbarHooks): () => void {
           signal: abort.signal,
           onToken: (chunk) => streamer?.push(chunk),
         })
+        if (version !== generation) return
+        document.dispatchEvent(new CustomEvent('doubao:chat-mode', { detail: '方舟 · 已回复' }))
         const answer = full.trim() || '（空响应）我换成本地助手继续帮你。'
         rememberTurn(text, answer)
         if (streamer) {
@@ -406,6 +431,7 @@ export function initAskbar(hooks: AskbarHooks): () => void {
         }
         return
       } catch (err) {
+        if (version !== generation) return
         console.info('[askbar] 方舟失败，回退假智能', err)
         if (streamer) streamer.set('')
         runFake(text, ai)
@@ -441,13 +467,13 @@ export function initAskbar(hooks: AskbarHooks): () => void {
         if (autoSend) void submit(text)
         else {
           input.value = text
-          input.focus()
+          input.focus({ preventScroll: true })
         }
       }, 280)
       return
     }
     input.value = text
-    input.focus()
+    input.focus({ preventScroll: true })
     bar.classList.add('is-filled')
     send?.classList.add('is-ready')
     window.setTimeout(() => bar.classList.remove('is-filled'), 500)
@@ -462,12 +488,13 @@ export function initAskbar(hooks: AskbarHooks): () => void {
   // 输入时点亮发送
   const onInput = (): void => {
     send?.classList.toggle('is-ready', input.value.trim().length > 0)
+    try { sessionStorage.setItem('doubao-draft', input.value) } catch { /* optional */ }
   }
   input.addEventListener('input', onInput)
   destroyers.push(() => input.removeEventListener('input', onInput))
 
   const onKeydown = (event: KeyboardEvent): void => {
-    if (event.key === 'Enter') {
+    if (event.key === 'Enter' && !event.isComposing && event.keyCode !== 229) {
       event.preventDefault()
       void submit()
       return
@@ -482,9 +509,37 @@ export function initAskbar(hooks: AskbarHooks): () => void {
     }
   }
 
+  const stopReply = (): void => {
+    generation += 1
+    abort?.abort()
+    window.clearInterval(replyTimer)
+    generationTimers.forEach(id => window.clearInterval(id))
+    generationTimers.clear()
+    thread?.querySelectorAll('.ask-bubble--think').forEach(el => el.remove())
+    busy = false
+    syncSend()
+    setSpeaking(false)
+  }
+  const onReset = (): void => {
+    stopReply()
+    resetFakeMemory()
+    difyConversationId = ''
+    lastUserText = ''
+    attached = null
+    if (attachLabel) attachLabel.hidden = true
+    if (ctxLine) ctxLine.hidden = true
+    if (chipsHost) { chipsHost.replaceChildren(); chipsHost.hidden = true }
+    thread?.replaceChildren()
+    appendBubble('豆包', '嗨，把想法说给我，我们从这里开始。', 'ai')
+    input.focus({ preventScroll: true })
+  }
+  const reset = document.getElementById('chatReset')
+  reset?.addEventListener('click', onReset)
+  destroyers.push(() => reset?.removeEventListener('click', onReset))
   const onSendClick = (event: MouseEvent): void => {
     event.preventDefault()
-    void submit()
+    if (busy) stopReply()
+    else void submit()
   }
 
   const onFirstPointer = (): void => hooks.onFirstGesture()
@@ -520,7 +575,7 @@ export function initAskbar(hooks: AskbarHooks): () => void {
     voiceHold = true
     voiceBtn?.classList.add('is-holding')
     voiceBtn?.setAttribute('aria-pressed', 'true')
-    if (voiceLabel) voiceLabel.textContent = '聆听中…'
+    if (voiceLabel) voiceLabel.textContent = '演示中…'
     bar.classList.add('is-voice')
   }
   const endVoice = (): void => {
@@ -528,19 +583,29 @@ export function initAskbar(hooks: AskbarHooks): () => void {
     voiceHold = false
     voiceBtn?.classList.remove('is-holding')
     voiceBtn?.setAttribute('aria-pressed', 'false')
-    if (voiceLabel) voiceLabel.textContent = '按住说话'
+    if (voiceLabel) voiceLabel.textContent = '语音示例'
     bar.classList.remove('is-voice')
-    void submit('（语音）帮我查一下今天杭州天气')
+    void submit('（语音示例）帮我安排一下今天')
   }
   voiceBtn?.addEventListener('pointerdown', startVoice)
   voiceBtn?.addEventListener('pointerup', endVoice)
   voiceBtn?.addEventListener('pointerleave', endVoice)
   voiceBtn?.addEventListener('pointercancel', endVoice)
+  const voiceKeyDown = (event: KeyboardEvent): void => {
+    if ((event.key === ' ' || event.key === 'Enter') && !event.repeat) startVoice(event)
+  }
+  const voiceKeyUp = (event: KeyboardEvent): void => {
+    if (event.key === ' ' || event.key === 'Enter') endVoice()
+  }
+  voiceBtn?.addEventListener('keydown', voiceKeyDown)
+  voiceBtn?.addEventListener('keyup', voiceKeyUp)
   destroyers.push(() => {
     voiceBtn?.removeEventListener('pointerdown', startVoice)
     voiceBtn?.removeEventListener('pointerup', endVoice)
     voiceBtn?.removeEventListener('pointerleave', endVoice)
     voiceBtn?.removeEventListener('pointercancel', endVoice)
+    voiceBtn?.removeEventListener('keydown', voiceKeyDown)
+    voiceBtn?.removeEventListener('keyup', voiceKeyUp)
   })
 
   document.querySelectorAll<HTMLButtonElement>('[data-ask-seed]').forEach((btn) => {
@@ -556,6 +621,8 @@ export function initAskbar(hooks: AskbarHooks): () => void {
   if (thread && thread.children.length === 0) {
     appendBubble('豆包', '嗨，我是豆包。把想法说给我，我接着聊。', 'ai')
   }
+  try { input.value = sessionStorage.getItem('doubao-draft') ?? '' } catch { /* optional */ }
+  syncSend()
 
   // 空格聚焦（非输入态）
   const onSpaceFocus = (e: KeyboardEvent): void => {
@@ -563,7 +630,8 @@ export function initAskbar(hooks: AskbarHooks): () => void {
     const t = e.target as HTMLElement | null
     if (t?.closest('input, textarea, [contenteditable], button, a')) return
     e.preventDefault()
-    input.focus()
+    document.dispatchEvent(new CustomEvent('doubao:go-chat'))
+    input.focus({ preventScroll: true })
     bar.classList.add('is-filled')
     window.setTimeout(() => bar.classList.remove('is-filled'), 400)
   }
@@ -572,6 +640,7 @@ export function initAskbar(hooks: AskbarHooks): () => void {
 
   return () => {
     disposed = true
+    stopReply()
     setSpeaking(false)
     abort?.abort()
     window.clearInterval(replyTimer)

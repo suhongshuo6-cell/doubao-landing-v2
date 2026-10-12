@@ -10,7 +10,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --port 4173",
     "typecheck": "tsc --noEmit",
-    "verify": "node tools/verify.mjs",
+    "verify": "node tools/verify-refinement.mjs",
     "check:flash": "node tools/check-flash.mjs",
     "perf": "node tools/perf.mjs"
   },

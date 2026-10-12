@@ -850,9 +850,6 @@ html.pinch-egg .interaction-hud {
 }
 
 /* ---- Askbar 布局补强（叠在 gen2 之上） -------------------------------- */
-.hero__ask {
-  max-width: min(520px, 94vw) !important;
-}
 .askbar {
   display: flex;
   align-items: center;

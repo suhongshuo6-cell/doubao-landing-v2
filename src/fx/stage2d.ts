@@ -219,7 +219,7 @@ export function createStage2d(): Stage2d | null {
   const draw = (): void => {
     ctx.clearRect(0, 0, W, H)
     particles.draw(ctx)
-    mascot.draw(ctx)
+    // Keep the portrait as the only visible character.
   }
 
   const destroy = (): void => {
