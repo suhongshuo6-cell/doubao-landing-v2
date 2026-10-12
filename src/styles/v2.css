@@ -607,7 +607,9 @@ html.booting { overflow: hidden; }
   object-fit: cover;
   object-position: 50% 38%;
   pointer-events: none;
-  opacity: 0;
+  /* 默认可见：不依赖帧循环点亮（后台标签帧循环暂停时也能显示首帧）；
+     加载幕期间由 html.booting 压住，下滚由帧循环按取景淡出 */
+  opacity: 1;
   transition: opacity 240ms linear;
   will-change: opacity, filter;
 }
