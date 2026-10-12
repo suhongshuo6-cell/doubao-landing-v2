@@ -619,3 +619,6 @@ html.booting .face-video { opacity: 0 !important; }
 @media (prefers-reduced-motion: reduce) {
   .face-video { transition: none; }
 }
+
+/* v2-video：视频脸偏亮，边缘光扫投在上面会形成脏光斑 —— 下线该实验层 */
+.hero-rimlight { display: none; }
