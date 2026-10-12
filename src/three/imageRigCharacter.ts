@@ -149,8 +149,9 @@ export class ImageRigCharacter implements CharacterRig {
     ctx.camera.add(this.object3d)
 
     // 面部代理球：raycast 只打它。放在脸板所在平面上
+    // v2：半径略放大（0.34→0.42），让"点脸/捏脸"命中更宽容、触感更跟手
     this.faceProxy = new THREE.Mesh(
-      new THREE.SphereGeometry(0.34, 12, 10),
+      new THREE.SphereGeometry(0.42, 12, 10),
       new THREE.MeshBasicMaterial({ visible: false }),
     )
     this.faceProxy.name = 'faceProxy'

@@ -326,6 +326,8 @@ function boot(): void {
     let pinchHoldMs = 0
     let pinchSuccessCount = 0
     let pinchRewardDone = false
+    // v2：轻点脸部时的即时凹陷脉冲（不用按住也能"凹一下"），随帧衰减
+    let tapPulse = 0
 
     const firePinchReward = (x: number, y: number): void => {
       if (pinchRewardDone) return
@@ -469,8 +471,10 @@ function boot(): void {
       const target = event.target as HTMLElement | null
       if (target?.closest('a, button, [data-no-pinch]')) return
       const framing = rig.framing
-      // 音效由 fx 层统一负责（阶段 1），这里只出文字
+      // 音效由 fx 层统一负责（阶段 1），这里出文字 + 即时凹陷脉冲
       if (framing < PINCH_GATE && hoveringFace) {
+        tapPulse = 1
+        blip(430)
         say('轻一点。')
       } else if (framing > 0.72) {
         say(framing > 0.9 ? '脚也看到了。' : '镜头还在继续。')
@@ -556,12 +560,16 @@ function boot(): void {
 
       if (character) {
         if (hoveringFace) {
-          const base = pressing ? 1 : 0.28
-          character.pinch(hitPoint, Math.min(2.2, base * pinchBoost))
+          // v2：触感加强 —— 悬停就有轻微凹陷，按住更深，轻点给一个即时脉冲
+          const base = pressing ? 1.25 : 0.45
+          const strength = Math.min(2.6, base * pinchBoost + tapPulse * 0.9)
+          character.pinch(hitPoint, strength)
         } else {
           character.pinch(null, 0)
         }
       }
+      // 脉冲随帧衰减（约 0.3s 回弹）
+      tapPulse = Math.max(0, tapPulse - dt * 3.4)
 
       // 全身段：强调捏脸光环与 HUD
       rootEl.classList.toggle('fullbody-live', rig.framing < PINCH_GATE || rig.framing >= 0.62 || document.documentElement.classList.contains('alcove-open'))
