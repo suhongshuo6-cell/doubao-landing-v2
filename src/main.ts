@@ -8,6 +8,7 @@ import './styles/gen3.css'
 import './styles/stage.css'
 import './styles/v2.css'
 import './styles/refinement.css'
+import './styles/immersive.css'
 
 import gsap from 'gsap'
 
@@ -23,6 +24,7 @@ import { initBootVeil } from './ui/bootVeil'
 import { initProgressRail } from './ui/progressRail'
 import { initContentSections, initStageSections } from './sections'
 import { initV2 } from './sections/v2'
+import { initImmersive } from './sections/immersive'
 import { createStage2d } from './fx/stage2d'
 import { initAskbar } from './ui/askbar'
 import { initSpectacle } from './motion/spectacle'
@@ -89,6 +91,7 @@ function boot(): void {
   initReveal()
   initContentSections({ scroll, loop })
   initV2(scroll)
+  initImmersive(scroll)
   initSpectacle({ loop })
   initFeedback(loop)
   initVelocityMarquee(scroll, loop)
@@ -100,15 +103,18 @@ function boot(): void {
   let cutFired = false
   const syncZone = (): void => {
     let active = 'product'
+    let layout = 'center'
     const mid = window.innerHeight * 0.42
     for (const el of zoneSections) {
       const r = el.getBoundingClientRect()
       if (r.top <= mid && r.bottom >= mid) {
         active = el.dataset.zone || active
+        layout = el.dataset.layout || 'left'
         break
       }
     }
     document.documentElement.dataset.zone = active
+    document.documentElement.dataset.layout = layout
     if (cutSection && !cutFired) {
       const r = cutSection.getBoundingClientRect()
       if (r.top < window.innerHeight * 0.7 && r.bottom > window.innerHeight * 0.25) {
@@ -224,6 +230,13 @@ function boot(): void {
   }
   fonts?.ready.then(settle).catch(settle)
   window.setTimeout(settle, 900)
+  let layoutRefresh = 0
+  const contentResize = new ResizeObserver(() => {
+    window.clearTimeout(layoutRefresh)
+    layoutRefresh = window.setTimeout(() => { scroll.lenis?.resize(); settle() }, 180)
+  })
+  const mainContent = document.querySelector('main')
+  if (mainContent) contentResize.observe(mainContent)
 
   // 调试：?p=0.36 直接停在某个取景进度（布局与 pin 稳定后再跳）
   const startP = Number(params.get('p'))
@@ -269,7 +282,7 @@ function boot(): void {
     /* ---- 角色：双轨资产自动探测 ---- */
     let character: CharacterRig | null = null
 
-    if (force) createCharacter({
+    createCharacter({
       renderer: stage.renderer,
       camera: stage.camera,
       force,
@@ -277,6 +290,7 @@ function boot(): void {
     })
       .then((rigged) => {
         character = rigged
+        rigged.object3d.visible = false
         // 注意：scene.add() 会**重新挂载**节点。立绘路径的 object3d 已经挂在相机下了，
         // 再 add 一次会把它从相机上摘下来 —— 相机会变成 0 个子节点，整个角色层不渲染。
         // 所以只给"还没有父节点"（探针/glb 路径）补挂一次。
@@ -285,7 +299,7 @@ function boot(): void {
         rig.updateMetrics(rigged.metrics)
         document.documentElement.dataset.character = rigged.kind
         document.dispatchEvent(new CustomEvent('doubao:stage-ready'))
-        if (motionPrefs.reduced || params.get('nointro') === '1' || params.has('p')) {
+        if (!force || motionPrefs.reduced || params.get('nointro') === '1' || params.has('p')) {
           rig.setIntro(1)
         } else {
           // 等加载幕 iris 揭幕启动的同一帧再跑开场推近，两段运动无缝接力
@@ -455,26 +469,31 @@ function boot(): void {
         trackPointer(event)
         // 拖动超过 12px 视为滚动/转视角，取消捏脸
         if (
-          motionPrefs.coarse && pressOrigin &&
+          motionPrefs.coarse && !pressing && pressOrigin &&
           Math.hypot(event.clientX - pressOrigin.x, event.clientY - pressOrigin.y) > 12
         ) {
           cancelPress()
         }
       },
-      { passive: true },
+      { passive: false },
     )
 
     window.addEventListener(
       'pointerdown',
       (event) => {
         const target = event.target as HTMLElement | null
-        if (target?.closest('a, button, [data-no-pinch]')) return
+        const touchTarget = target?.closest<HTMLElement>('[data-face-touch]')
+        if (target?.closest('a, button, [data-no-pinch]') && !touchTarget) return
         // 关键：触摸端第一次接触就是 pointerdown，没有 pointermove。
         // 不在这里取坐标的话 pointerInside 永远是 false，捏脸在手机上完全不会触发。
         trackPointer(event)
         if (!faceLayer?.isOnFace(event.clientX, event.clientY)) return
         pressOrigin = { x: event.clientX, y: event.clientY }
-        if (motionPrefs.coarse) {
+        if (touchTarget) {
+          event.preventDefault()
+          touchTarget.setPointerCapture(event.pointerId)
+          pressing = true
+        } else if (motionPrefs.coarse) {
           // 触摸端：长按 = 捏脸（规格第八节）。不设长按的话一滑动就会误捏。
           longPressTimer = window.setTimeout(() => {
             pressing = true
@@ -483,7 +502,7 @@ function boot(): void {
           pressing = true
         }
       },
-      { passive: true },
+      { passive: false },
     )
 
     window.addEventListener('pointerup', cancelPress, { passive: true })
@@ -495,7 +514,7 @@ function boot(): void {
 
     window.addEventListener('click', (event) => {
       const target = event.target as HTMLElement | null
-      if (target?.closest('a, button, [data-no-pinch]')) return
+      if (target?.closest('a, button, [data-no-pinch]') && !target?.closest('[data-face-touch]')) return
       const framing = rig.framing
       // 音效由 fx 层统一负责（阶段 1），这里出文字 + 即时凹陷脉冲
       if (framing < PINCH_GATE && hoveringFace) {
@@ -535,6 +554,17 @@ function boot(): void {
 
     /* ---- 主循环：唯一的一帧 ---- */
     let lastNode = -1
+    document.addEventListener('doubao:character-view', event => character?.setView?.(Number((event as CustomEvent<number>).detail)))
+    const faceTargets = document.getElementById('faceTouchTargets')
+    const cheekButtons = Array.from(document.querySelectorAll<HTMLElement>('[data-face-touch]'))
+    cheekButtons.forEach((button, index) => button.addEventListener('click', event => {
+      if ((event as MouseEvent).detail !== 0 || !faceLayer?.visible) return
+      const point = faceLayer.getScreenPoint(index ? .65 : .39, .46)
+      trackPointer(new PointerEvent('pointermove', { clientX: point.x, clientY: point.y }))
+      tapPulse = 1
+      say('有点软，对吧。')
+      firePinchReward(point.x, point.y)
+    }))
 
     loop.add((dt) => {
       const state = scroll.read()
@@ -544,7 +574,9 @@ function boot(): void {
       rig.update(dt)
 
       if (character) {
-        character.setFraming(rig.framing)
+        // The body starts with the shoulder shot. The old face plate is never
+        // shown behind the video: one portrait layer at a time.
+        character.setFraming(Math.max(.18, rig.framing))
         // 速度拖影：慢滚时 --vel 恒为 0，画面完全平静
         character.setSmear?.(Number(rootEl.style.getPropertyValue('--vel')) || 0)
         character.update(dt)
@@ -554,6 +586,15 @@ function boot(): void {
       if (faceLayer) {
         faceLayer.setFraming(rig.framing)
         faceLayer.update(dt)
+      }
+      if (character) character.object3d.visible = !faceLayer?.visible
+      if (faceTargets && faceLayer) {
+        faceTargets.hidden = motionPrefs.reduced || !faceLayer.visible || window.scrollY > window.innerHeight * .3
+        cheekButtons.forEach((button, index) => {
+          const point = faceLayer.getScreenPoint(index ? .65 : .39, .46)
+          button.style.left = `${point.x}px`
+          button.style.top = `${point.y}px`
+        })
       }
 
       if (pressing && !lastPressing) {
@@ -574,13 +615,15 @@ function boot(): void {
       // ---- 面部命中与捏脸（视频脸：源坐标椭圆命中）----
       hoveringFace = false
       if (faceLayer && pointerInside && faceLayer.visible) {
-        hoveringFace = faceLayer.isOnFace(pointerClientX, pointerClientY)
+        hoveringFace = pressOrigin && pressing
+          ? faceLayer.isOnFace(pressOrigin.x, pressOrigin.y)
+          : faceLayer.isOnFace(pointerClientX, pointerClientY)
       }
 
       if (faceLayer) {
         if (hoveringFace) {
           // 触感：悬停轻微凹陷，按住更深，轻点给一个即时脉冲
-          const base = pressing ? 0.6 : 0
+          const base = pressing ? .95 : 0
           const strength = Math.min(2.6, base * pinchBoost + tapPulse * 0.9)
           const x = pressOrigin ? pressOrigin.x / window.innerWidth : ndc.x * .5 + .5
           const y = pressOrigin ? 1 - pressOrigin.y / window.innerHeight : ndc.y * .5 + .5
@@ -710,6 +753,9 @@ function boot(): void {
           node: rig.nodeIndex,
           kind: character?.kind ?? 'video',
           ready: character?.ready ?? Boolean(faceLayer),
+          activeShot: character?.activeShot ?? 'video',
+          characterVisible: character?.object3d.visible ?? false,
+          faceVisible: faceLayer?.visible ?? false,
           renderScale: stage.renderScale,
           drawCalls: stage.renderer.info.render.calls,
         }),

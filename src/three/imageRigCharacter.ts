@@ -6,24 +6,11 @@ import { FaceExpression } from './faceExpression'
 import { createPlateMaterial, createPlateUniforms, type PlateUniforms } from './plateShader'
 
 /**
- * imageRigCharacter.ts — 路径 B：分层立绘（2.5D 伪立体）。
- *
- * ============================ 设计决策 ============================
- * 交付时对你上传的素材做过离线验证（tools/preview_frames.py）：
- * 这 5 张特写是**各自独立的镜头**、尺度差 3~10 倍，整幅交叉淡化 = 双重曝光（实测），
- * 焦点淡化仍有重影，硬切最干净。
- *
- * 所以这里做的是**分镜语言**，而不是假装连续运镜：
- *   · 硬切，但切点落在"焦点虚化的最高点"——两侧一样糊，切就看不见了，
- *     读起来是一次 rack focus，不是幻灯片
- *   · 每镜内部连续推近（1.0 → 1.05），每一镜都是"活的"
- *   · 人像层与背景层摆在不同深度，同一个世界位移在两层的屏幕位移不同
- *     → 真实视差，静态照片因此有了体积
- *   · 全身段用 front/side/back 三视图 + 横向压缩：光标移向屏幕边缘她就转过去，
- *     转轴处压成一条线再换图，所以看不到重影。这是全站唯一真正"三维"的时刻。
- * ==================================================================
- *
- * 所有板都挂在 camera 下 → 天然屏幕对齐，不需要每帧手动同步相机姿态。
+ * Persistent character stage: one original photograph per shot, mutually
+ * exclusive with the hero video. Scroll moves through shoulder, waist, legs
+ * and body framing. A short focus transition hides image changes without
+ * overlapping two faces. Full-body views switch explicitly via the studio.
+ * Plates are camera children, so screen framing remains independent of orbit.
  */
 
 const PLATE_ASPECT = 16 / 9
@@ -57,7 +44,7 @@ interface ShotSpec {
 }
 
 /** 焦点虚化窗口（占一段的比例）。与 Python 预览的 FADE_WINDOW 对齐 */
-const FADE_WINDOW = 0.16
+const FADE_WINDOW = 0.08
 
 const BODY_VIEWS = ['doubao_front', 'doubao_side', 'doubao_back'] as const
 
@@ -80,11 +67,6 @@ interface Shot {
   plate: string
   group: THREE.Group
   layers: Layer[]
-}
-
-function smoothstep01(x: number): number {
-  const t = clamp01(x)
-  return t * t * (3 - 2 * t)
 }
 
 /** 只在段的正中间抬起来的虚焦量：0 → 1 → 0 */
@@ -125,6 +107,11 @@ export class ImageRigCharacter implements CharacterRig {
   private readonly pressStrength = createSpring(SPRING.pinch)
   private readonly pointer = new THREE.Vector2(0, 0)
   private framing = 0
+  private selectedView = 0
+  private axis = .5
+  private readonly composition = createSpring({ stiffness: 45, damping: 18, mass: 1 })
+  private shotName = ''
+  private readonly viewChange = createSpring({ stiffness: 90, damping: 18, mass: 1 })
   private aspect = 16 / 9
   /** 每张板的主体包围盒（由 tools/make_mattes.py 生成）—— 移动端取景全靠它 */
   private manifest: Record<string, { bbox: number[]; layered: boolean }> = {}
@@ -165,7 +152,7 @@ export class ImageRigCharacter implements CharacterRig {
   private async loadTexture(file: string): Promise<THREE.Texture> {
     // public/ 资源不带哈希文件名，换素材后浏览器/CDN 会读旧缓存 —— 用版本号强制刷新
     const tex = await new THREE.TextureLoader().loadAsync(
-      `${import.meta.env.BASE_URL}img/rig/${file}?v=2`,
+      `${import.meta.env.BASE_URL}img/${file.startsWith('original:') ? file.slice(9) : `rig/${file}`}?v=2`,
     )
     // 照片按原样采样：自定义 ShaderMaterial 不走 three 的 colorspace_fragment，
     // 这里如果用 SRGBColorSpace，贴图会被线性化但输出不做 sRGB 编码，画面整体发灰。
@@ -195,25 +182,9 @@ export class ImageRigCharacter implements CharacterRig {
     // 并行取图，8 张串行会明显拖慢首帧
     const subjects = new Map(
       await Promise.all(
-        [...names].map(async (n) => [n, await this.loadTexture(`${n}.webp`)] as const),
+        [...names].map(async (n) => [n, await this.loadTexture(`original:${n}.webp`)] as const),
       ),
     )
-    const backdrops = new Map<string, THREE.Texture>()
-    for (const [name, tex] of subjects) {
-      // 脸部特写人像占满画面、没有背景层（manifest 里 layered=false）。
-      // 不探测直接退回原图 —— 否则会发一个注定 404 的请求，
-      // 虽然 catch 兜得住，但控制台会留一条红。
-      if (this.manifest[name]?.layered === false) {
-        backdrops.set(name, tex)
-        continue
-      }
-      try {
-        backdrops.set(name, await this.loadTexture(`${name}_bg.webp`))
-      } catch {
-        backdrops.set(name, tex)
-      }
-    }
-
     for (const anchor of ANCHORS) {
       const shot: Shot = { plate: anchor.plate, group: new THREE.Group(), layers: [] }
       this.object3d.add(shot.group)
@@ -221,16 +192,12 @@ export class ImageRigCharacter implements CharacterRig {
       const zoom = anchor.zoom ?? 1
       const panY = anchor.panY ?? 0
       if (anchor.plate === 'body') {
-        shot.layers.push(this.makeLayer(shot.group, backdrops.get('doubao_front')!, true, -1, 'doubao_front'))
         BODY_VIEWS.forEach((view, i) => {
           shot.layers.push(this.makeLayer(shot.group, subjects.get(view)!, false, i, view))
         })
       } else {
         const name = `doubao_${anchor.plate}`
         const subjectTex = subjects.get(name)!
-        const bgTex = backdrops.get(name)!
-        // 背景层不跟着推近，它只负责视差 —— 跟着推会让两层同时放大，视差就没了
-        if (bgTex !== subjectTex) shot.layers.push(this.makeLayer(shot.group, bgTex, true, -1, name))
         shot.layers.push(this.makeLayer(shot.group, subjectTex, false, -1, name, zoom, panY))
       }
 
@@ -325,16 +292,25 @@ export class ImageRigCharacter implements CharacterRig {
    *   3. sy 同时就是"人物占屏高的比例"—— 实测约 0.44，正好落在规格要的 45% 附近
    */
   private applyCrop(layer: Layer): void {
+    // The full-body photos retain their original studio background. Fit height
+    // rather than the old matte's oversized bounds, keeping head and toes visible.
+    if (layer.viewIndex >= 0) {
+      const sy = 1.14
+      const sx = sy * this.aspect / PLATE_ASPECT
+      layer.uniforms.uUvScale.value.set(sx, sy)
+      layer.uniforms.uUvOffset.value.set(.51 - this.axis * sx, .5 - sy * .5)
+      return
+    }
     // 不做分层抠像的板（脸部特写人像占满画面）没有 alpha 边，
     // 按主体重框会越界采样 → ClampToEdge 把最边一行拉成条纹。
     // 这种板在移动端就用 cover：竖屏裁成一条竖幅，本来就是肖像该有的样子。
     const layered = this.manifest[layer.plate]?.layered ?? false
-    if (motionPrefs.tier === 'mobile' && layered) {
+    if (motionPrefs.tier === 'mobile' && layered && layer.backdrop) {
       const entry = this.manifest[layer.plate]
       const bbox = entry?.bbox ?? [0.14, 0.02, 0.86, 0.98]
       const [x0, y0, x1, y1] = bbox as [number, number, number, number]
       const bw = Math.max(0.05, x1 - x0)
-      const targetW = 0.86
+      const targetW = layer.plate.startsWith('doubao_front') || layer.plate.startsWith('doubao_side') || layer.plate.startsWith('doubao_back') ? .62 : .94
       const screenFrac = 0.72          // 人物中轴落在屏幕 72% 处 —— 文案留在上方
       const bcx = (x0 + x1) / 2
       const bcy = (y0 + y1) / 2
@@ -364,7 +340,7 @@ export class ImageRigCharacter implements CharacterRig {
     const sy = by / layer.zoom
     layer.uniforms.uUvScale.value.set(sx, sy)
     layer.uniforms.uUvOffset.value.set(
-      layer.baseOffset.x + (bx - sx) * 0.5,
+      layer.baseOffset.x + (bx - sx) * 0.5 + (.5 - (motionPrefs.tier === 'mobile' ? .5 : this.axis)) * sx,
       // panY 为正 = 把取景框往板的下方挪（看到身体更靠下的部位）
       layer.baseOffset.y + (by - sy) * (0.5 + layer.panY),
     )
@@ -374,6 +350,12 @@ export class ImageRigCharacter implements CharacterRig {
 
   get pinchStrength(): number {
     return this.pressStrength.value
+  }
+  get activeShot(): string { return this.shotName }
+  setView(index: number): void {
+    this.selectedView = Math.max(0, Math.min(2, Math.round(index)))
+    if (motionPrefs.reduced) this.viewChange.set(this.selectedView)
+    else this.viewChange.to(this.selectedView)
   }
 
   pinch(point: THREE.Vector3 | null, strength: number): void {
@@ -394,12 +376,16 @@ export class ImageRigCharacter implements CharacterRig {
     if (Math.abs(this.camera.aspect - this.aspect) > 0.001) this.resize()
 
     const { index, u } = segment(this.framing)
+    const layout = document.documentElement.dataset.layout
+    this.composition.to(motionPrefs.tier === 'mobile' ? .5 : layout === 'right' ? .3 : layout === 'center' ? .5 : .72)
+    this.axis = this.composition.update(dt)
+    if (motionPrefs.tier !== 'mobile') for (const shot of this.shots) for (const layer of shot.layers) this.applyCrop(layer)
     // 硬切：切点落在 u=0.5，也就是焦点虚化最高点 —— 两侧一样糊，切就看不见
     const activeIndex = Math.min(
       u < 0.5 ? index : index + 1,
       this.shots.length - 1,
     )
-    const focusTarget = focusAmount(u)
+    const focusTarget = ANCHORS[index]!.plate === ANCHORS[index + 1]!.plate ? 0 : focusAmount(u)
     this.smoothFocus += (focusTarget - this.smoothFocus) * Math.min(1, dt * 14)
 
     // 每一镜内部连续推近 5%
@@ -407,17 +393,13 @@ export class ImageRigCharacter implements CharacterRig {
     const tan = Math.tan((this.camera.fov * Math.PI) / 360)
     // 视差：两层共用同一个世界位移，深度不同 → 屏幕位移自然错开
     const parallax = motionPrefs.tier === 'mobile' ? 0 : 1
-    const parX = this.pointer.x * 0.02 * parallax
-    const parY = this.pointer.y * 0.013 * parallax
+    const parX = this.pointer.x * 0.009 * parallax
+    const parY = this.pointer.y * 0.006 * parallax
 
-    // 转身：光标越靠屏幕边缘，她转得越多。0 = 正面，0.5 = 侧面，1 = 背面。
-    // squash 用 |cos(2π·turn)| —— 在 0.25 / 0.75（两次换图的那一刻）压到 0，
-    // 所以换图时人物正好是"一条线"，看不到重影。
-    const turn = clamp01(Math.abs(this.pointer.x))
-    const squash = Math.abs(Math.cos(Math.PI * 2 * turn))
-    const u1 = smoothstep01((turn - 0.2) / 0.1)
-    const u2 = smoothstep01((turn - 0.7) / 0.1)
-    const viewWeights = [1 - u1, u1 * (1 - u2), u2]
+    // Explicit front / side / back selection with a short focus transition.
+    const view = this.viewChange.update(dt)
+    const selectedView = Math.max(0, Math.min(2, Math.round(view)))
+    const turning = Math.abs(Math.sin(Math.PI * view))
 
     const strength = this.pressStrength.update(dt)
 
@@ -428,6 +410,7 @@ export class ImageRigCharacter implements CharacterRig {
       if (!visible) continue
 
       const isBody = shot.plate === 'body'
+      this.shotName = shot.plate
       if (this.faceLayer && shot.layers.includes(this.faceLayer)) this.expr.update(dt, this.faceLayer.uniforms)
 
       for (const layer of shot.layers) {
@@ -443,9 +426,9 @@ export class ImageRigCharacter implements CharacterRig {
         // 移动端的取景每帧重算：不依赖 resize 的触发时序，避免用到上一档视口的比例
         if (motionPrefs.tier === 'mobile') this.applyCrop(layer)
         un.uOpacity.value =
-          isBody && layer.viewIndex >= 0 ? (viewWeights[layer.viewIndex] ?? 0) : 1
-        un.uFocus.value = this.smoothFocus
-        un.uSquash.value = isBody && layer.viewIndex >= 0 ? squash : 1
+          isBody && layer.viewIndex >= 0 ? Number(layer.viewIndex === selectedView) : 1
+        un.uFocus.value = motionPrefs.reduced ? 0 : Math.max(this.smoothFocus, isBody ? turning * .8 : 0)
+        un.uSquash.value = 1
         un.uPressStrength.value = strength
         un.uPressSquash.value = 0.08 + strength * 0.12
         // 板是屏幕对齐的，所以指针的 NDC 直接就是它的 UV
@@ -454,7 +437,7 @@ export class ImageRigCharacter implements CharacterRig {
         un.uPressRadius.value = 0.22
 
         const isFace = layer === this.faceLayer
-        const h = 2 * Math.abs(layer.depth) * tan * push * (isFace ? this.expr.breath : 1)
+        const h = 2 * Math.abs(layer.depth) * tan * (isBody ? 1.025 : push * 1.025) * (isFace ? this.expr.breath : 1)
         layer.mesh.scale.set(h * this.camera.aspect, h, 1)
         layer.mesh.position.set(parX + (isFace ? this.expr.swayX * h : 0), parY + (isFace ? this.expr.breathY * h : 0), layer.depth)
       }

@@ -60,7 +60,7 @@
         <a class="nav__brand" href="#hero" aria-label="回到顶部">
           <span class="nav__mark">豆包</span>
         </a>
-        <nav class="nav-links" aria-label="页面导航"><a href="#chatStage">聊一聊</a><a href="#capabilities">看能力</a><a href="#scenes">在日常</a></nav>
+        <nav class="nav-links" id="exploreMenu" aria-label="页面导航"><a href="#chatStage">聊一聊</a><a href="#productTour">认识豆包</a><a href="#capabilities">能力工作台</a><a href="#playground">灵感游乐场</a><a href="#characterStudio">看看她的全貌</a><a href="#faq">你可能想问</a></nav><button class="nav-menu" id="siteMenu" type="button" aria-expanded="false" aria-controls="exploreMenu">探索</button>
         <button class="nav__sound" id="soundToggle" type="button" aria-pressed="false" aria-label="开关音效">
           <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" focusable="false">
             <path d="M3 6h2.2L8 3.6v8.8L5.2 10H3z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round" />
@@ -84,7 +84,7 @@
 
     <main id="main">
       <!-- ══ 1 / Hero：可分支对话 + 磨砂底板 ══ -->
-      <section class="s-hero" id="hero" data-anchor="0.00" data-zone="product" data-chapter="hear">
+      <section class="s-hero" id="hero" data-anchor="0.00" data-zone="product" data-chapter="hear" data-layout="center">
         <img class="hero-poster" src="./video/doubao_face_v3_still.webp" alt="戴红围巾、微笑的豆包人物" width="640" height="360" fetchpriority="high" />
         <div class="s-hero__wash" aria-hidden="true"></div>
         <div class="s-hero__brand">
@@ -117,11 +117,13 @@
           </svg>
         </button>
 
-        <div class="hero-tools"><span class="hero-tools__hint">移动鼠标看向你 · 按住脸颊轻轻拖动</span><button class="motion-toggle" id="motionToggle" type="button" aria-pressed="false">暂停人物动态</button></div>
+        <div class="hero-tools"><span class="hero-tools__hint" id="heroPinchHint">按住脸颊，轻轻拖动 · 松开会回弹</span><button class="motion-toggle" id="motionToggle" type="button" aria-pressed="false">暂停视频</button></div>
+        <p class="hero-scroll"><i></i>SCROLL TO DISCOVER</p>
       </section>
+      <div class="face-touch-targets" id="faceTouchTargets"><button class="cheek-target" type="button" data-face-touch aria-label="轻捏豆包左脸颊"></button><button class="cheek-target" type="button" data-face-touch aria-label="轻捏豆包右脸颊"></button></div>
 
       <!-- ══ 1b / 对话舞台：左人右框分屏，接真模型 ══ -->
-      <section class="s-talk" id="chatStage" data-anchor="0.06" data-zone="product" data-chapter="hear" data-gate>
+      <section class="s-talk" id="chatStage" data-anchor="0.12" data-zone="product" data-chapter="hear" data-gate data-layout="center">
         <div class="talk-intro"><p class="section-index">01 / A LITTLE CONVERSATION</p><h2>从一句话开始。</h2><p>写作、学习，或只是聊聊今天。</p></div>
         <div class="s-talk__wrap wrap">
           <!-- 左半留空露出角色；halo 在她脸周随说话脉动 -->
@@ -179,7 +181,7 @@
       </section>
 
       <!-- ══ 2 / 定位（浅色清晰卡片） ══ -->
-      <section class="s-pos" id="positioning" data-anchor="0.20" data-zone="product" data-chapter="understand" data-gate>
+      <section class="s-pos" id="positioning" data-anchor="0.20" data-zone="product" data-chapter="understand" data-gate data-layout="left">
         <div class="s-pos__grid wrap">
           <div class="s-pos__copy panel panel--light" data-parallax data-parallax-speed="-0.05">
             <p class="eyebrow" data-reveal>02 / 一个入口，很多种可能</p>
@@ -208,8 +210,21 @@
       <!-- ══ 2b / 对照 + 模板墙 + 产品数字 ══ -->
 
 
+
+      <section class="s-product-tour" id="productTour" data-anchor="0.29" data-zone="product" data-layout="right">
+        <div class="float-shell glass-panel" data-reveal>
+          <p class="story-label">03 / MEET DOUBAO</p>
+          <h2 class="story-heading">不止聊天。<br />也是你的下一步。</h2>
+          <p class="story-lead">从一句问题，到一封邮件、一份计划、一张画面。点开一种能力，看看它怎样进入你的日常。</p>
+          <div class="product-tabs" id="productTabs" role="tablist" aria-label="豆包产品能力"></div>
+          <div class="product-detail" id="productDetail" role="tabpanel" aria-live="polite"><span class="product-detail__tag">表达</span><h3>写作与表达</h3><p>把零散想法整理成清楚的表达。告诉豆包你的主题、对象和语气，再一起打磨内容。</p></div>
+          <button class="story-action" type="button" id="productTry">把这个问题带去聊聊 <span>↗</span></button>
+          <p class="chapter-note">产品能力与开放范围以豆包官方客户端为准。<a href="https://www.doubao.com/download/desktop" target="_blank" rel="noopener noreferrer">了解官方产品 ↗</a></p>
+        </div>
+      </section>
+
       <!-- ══ 3 / 四大能力沙盒（终端风） ══ -->
-      <section class="s-cap" id="capabilities" data-anchor="0.34" data-zone="product" data-chapter="create" data-gate>
+      <section class="s-cap" id="capabilities" data-anchor="0.38" data-zone="product" data-chapter="create" data-gate data-layout="left">
         <div class="s-cap__head wrap">
           <div class="panel">
             <p class="eyebrow" data-reveal>能力</p>
@@ -320,10 +335,10 @@
       </section>
 
       <!-- ══ 4 / 场景 ══ -->
-      <section class="s-scenes" id="scenes" data-anchor="0.48" data-zone="product">
+      <section class="s-scenes" id="scenes" data-anchor="0.54" data-zone="product" data-layout="right">
         <div class="s-scenes__head wrap">
           <div class="panel">
-            <p class="eyebrow" data-reveal>04 / 在日常</p>
+            <p class="eyebrow" data-reveal>05 / 在日常</p>
             <h2 class="s-scenes__title" data-reveal-lines data-chapter-enter="clip">生活里的小事，都可以聊。</h2>
           </div>
         </div>
@@ -331,11 +346,34 @@
 
       </section>
 
+
+      <section class="s-playground" id="playground" data-anchor="0.60" data-zone="craft" data-layout="left">
+        <div class="float-shell">
+          <div class="glass-panel playground-head" data-reveal><p class="story-label">06 / A LITTLE PLAY</p><h2 class="story-heading">把好奇心，<br />交给这一刻。</h2><p class="story-lead">配一份灵感，选一段故事，或安静地专注一会儿。每一次点击，都有下一步。</p></div>
+          <div class="play-tabs" id="playTabs" role="tablist" aria-label="游乐场玩法"><button type="button" role="tab" aria-selected="true" data-play="recipe">灵感配方</button><button type="button" role="tab" aria-selected="false" data-play="story">分支故事</button><button type="button" role="tab" aria-selected="false" data-play="focus">陪伴专注</button></div>
+          <div class="glass-panel play-panel" data-play-panel="recipe" role="tabpanel">
+            <p class="mini-label">选三个关键词，拼出你的下一句话。</p>
+            <fieldset class="recipe-group"><legend>今天想做什么</legend><div><button type="button" class="is-selected" data-recipe="task" data-value="安排一次周末旅行">旅行</button><button type="button" data-recipe="task" data-value="写一封工作邮件">写作</button><button type="button" data-recipe="task" data-value="理解一个新的知识点">学习</button><button type="button" data-recipe="task" data-value="构思一个短视频创意">创作</button></div></fieldset>
+            <fieldset class="recipe-group"><legend>用怎样的方式</legend><div><button type="button" class="is-selected" data-recipe="tone" data-value="轻松、有亲近感">轻松一点</button><button type="button" data-recipe="tone" data-value="简洁、清楚、直接">直奔重点</button><button type="button" data-recipe="tone" data-value="细致，并举出具体例子">细致一些</button></div></fieldset>
+            <fieldset class="recipe-group"><legend>最后得到什么</legend><div><button type="button" class="is-selected" data-recipe="format" data-value="一份可以直接使用的清单">一份清单</button><button type="button" data-recipe="format" data-value="三个不同的可选方案">三个方案</button><button type="button" data-recipe="format" data-value="一段可继续修改的初稿">一段初稿</button></div></fieldset>
+            <label class="mini-label" for="recipeOutput">你的灵感配方 · 可以继续编辑</label><textarea id="recipeOutput" rows="4" aria-label="生成的灵感提示词"></textarea>
+            <div class="play-actions"><button class="story-action" type="button" id="recipeSend">带去和豆包聊 <span>↗</span></button><button class="quiet-action" type="button" id="recipeCopy">复制配方</button></div>
+          </div>
+          <div class="glass-panel play-panel" data-play-panel="story" role="tabpanel" hidden>
+            <p class="mini-label">互动故事示例 · 你的选择改变结尾</p><h3 class="play-title">赶在日落之前。</h3><div class="story-lines" id="storyLines" aria-live="polite"></div><div class="story-choices" id="storyChoices"></div><button class="quiet-action" id="storyRestart" type="button">重新开始 ↺</button>
+          </div>
+          <div class="glass-panel play-panel" data-play-panel="focus" role="tabpanel" hidden>
+            <p class="mini-label">一小段时间，只留给一件事。</p><label class="focus-label" for="focusGoal">这一次，我想完成</label><input id="focusGoal" type="text" maxlength="60" placeholder="读几页书，或写完一个开头…" /><div class="focus-durations" aria-label="专注时长"><button type="button" class="is-selected" data-duration="5">5 分钟</button><button type="button" data-duration="15">15 分钟</button><button type="button" data-duration="25">25 分钟</button></div><div class="focus-clock" id="focusClock"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="focus-clock__track" cx="60" cy="60" r="54"/><circle class="focus-clock__progress" cx="60" cy="60" r="54"/></svg><time id="focusTime">05:00</time></div><p id="focusStatus" class="focus-status" aria-live="polite">准备好，就开始。</p><div class="play-actions"><button class="story-action" type="button" id="focusStart">开始专注</button><button class="quiet-action" type="button" id="focusReset">重置</button></div>
+          </div>
+          <p class="play-footnote">提示词拼接、分支故事与计时在本页真实运行；对话回复使用本站已配置的模型或本地示例。</p>
+        </div>
+      </section>
+
       <!-- ══ 5 / 章节门 → Alcoves 三关卡 ══ -->
-      <section class="s-alcoves" id="alcoves" data-anchor="0.64" data-zone="craft" data-gate>
+      <section class="s-alcoves" id="alcoves" data-anchor="0.74" data-zone="craft" data-gate data-layout="left">
         <div class="wrap">
           <div class="panel panel--light" data-spectacle>
-            <p class="eyebrow" data-reveal>05 / 再玩一会儿</p>
+            <p class="eyebrow" data-reveal>07 / 再玩一会儿</p>
             <h2 class="s-alcoves__title">一点好奇，一点回应。</h2>
             <p class="s-alcoves__lead">捏捏脸、听听声音，或放一份示例文件。三个轻互动，感受不同的回应方式。</p>
           </div>
@@ -424,8 +462,24 @@
       <!-- ══ 9 / 模板瀑布 + 证言翻转 ══ -->
 
 
+
+      <section class="s-character" id="characterStudio" data-anchor="0.92" data-zone="craft" data-layout="center">
+        <div class="character-studio__copy glass-panel" data-reveal><p class="story-label">08 / HER LITTLE STAGE</p><h2 class="story-heading">这一次，<br />看见她的全貌。</h2><p class="story-lead">从一张微笑的脸，到一条红围巾，再到完整身影。慢一点，把这一幕留给她。</p><div class="character-views" role="group" aria-label="人物视角"><button type="button" class="is-selected" aria-pressed="true" data-character-view="0">正面</button><button type="button" aria-pressed="false" data-character-view="1">侧面</button><button type="button" aria-pressed="false" data-character-view="2">背面</button></div><p class="mini-label">在空白处左右拖动，也可以换个角度。</p><label class="spotlight-label">一束光的温度<input type="range" id="spotlightRange" min="0" max="100" value="55" aria-label="舞台光线冷暖" /></label></div>
+        <p class="character-studio__caption">RED SCARF / A LITTLE WARMTH</p>
+      </section>
+      <section class="s-faq" id="faq" data-anchor="0.96" data-zone="product" data-layout="left">
+        <div class="float-shell glass-panel" data-reveal><p class="story-label">09 / BEFORE YOU GO</p><h2 class="story-heading">你可能还想知道。</h2><div class="faq-list">
+          <article class="faq-item"><h3><button type="button" aria-expanded="false">第一次用豆包，可以从什么开始？<span>+</span></button></h3><div class="faq-answer" hidden><p>把你正在做的事直接说出来，再补充对象、目标和想要的形式。例如：“我要向同事说明项目延期，请写一封简洁、客观的邮件。”</p></div></article>
+          <article class="faq-item"><h3><button type="button" aria-expanded="false">怎样让回答更接近我的想法？<span>+</span></button></h3><div class="faq-answer" hidden><p>给出背景、目标、限制和例子，然后继续追问。“再短一点”“给我三个不同方向”“保留这段，重写结尾”都比一次塞进所有要求更容易逐步打磨。</p></div></article>
+          <article class="faq-item"><h3><button type="button" aria-expanded="false">它可以帮我处理哪些内容？<span>+</span></button></h3><div class="faq-answer" hidden><p>豆包官方客户端提供写作、搜索、翻译、语音交流、图像与文档创作等能力。电脑端、移动端与不同版本的开放范围可能不同，请以官方客户端为准。</p></div></article>
+          <article class="faq-item"><h3><button type="button" aria-expanded="false">这个网页的功能都是真实模型吗？<span>+</span></button></h3><div class="faq-answer" hidden><p>这里是非官方创意体验。聊天沿用本站已有的模型配置，未配置时会明确显示本地示例。提示词配方、计时、故事选择和人物互动可直接在网页运行；部分能力工作台、附件和语音是交互示例。</p></div></article>
+          <article class="faq-item"><h3><button type="button" aria-expanded="false">人物可以真正转身、被捏脸吗？<span>+</span></button></h3><div class="faq-answer" hidden><p>你看到的是动态素材、局部形变和多视角图片组成的视觉互动。可以捏脸颊、体验回弹和切换正侧背面；人物并非可以自由重建的三维模型。</p></div></article>
+          <article class="faq-item"><h3><button type="button" aria-expanded="false">在哪里体验官方豆包？<span>+</span></button></h3><div class="faq-answer" hidden><p>访问 <a href="https://www.doubao.com/" target="_blank" rel="noopener noreferrer">豆包官网 ↗</a> 或 <a href="https://www.doubao.com/download/desktop" target="_blank" rel="noopener noreferrer">桌面版页面 ↗</a>。正式使用前，可以查看官方的 <a href="https://www.doubao.com/legal/privacy" target="_blank" rel="noopener noreferrer">隐私政策 ↗</a>。</p></div></article>
+        </div></div>
+      </section>
+
       <!-- ══ 10 / 大 CTA 舞台 ══ -->
-      <section class="s-cta-stage" id="ctaStage" data-anchor="1.00" data-zone="craft" data-gate>
+      <section class="s-cta-stage" id="ctaStage" data-anchor="1.00" data-zone="craft" data-gate data-layout="right">
         <div class="cta-stage wrap">
           <p class="eyebrow">开始</p>
           <h2 class="cta-stage__title" data-chapter-enter="rise">现在，说一句给她听。</h2>
@@ -463,6 +517,9 @@
       <p class="s-foot__copy">© 2026 · 非官方致敬项目</p>
     </footer>
 
+    <div class="ambient-spot" aria-hidden="true"></div>
+    <nav class="story-progress" id="storyProgress" aria-label="章节进度"></nav>
+    <div class="experience-pass" id="experiencePass">小小探索 <b>0 / 5</b></div>
     <div class="pinch-ring" id="pinchRing" aria-hidden="true"></div>
     <aside class="interaction-hud" id="interactionHud" aria-live="polite" aria-atomic="true">
       <div class="interaction-hud__top"><span id="interactionStatus">QUEST</span><b id="interactionCount">01 / 05</b></div>

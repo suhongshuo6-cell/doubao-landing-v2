@@ -32,6 +32,7 @@ uniform vec2 uGaze;
 uniform vec2 uEyeLeft;
 uniform vec2 uEyeRight;
 uniform float uEyeOpen;
+uniform float uEdgeFade;
 varying vec2 vUv;
 float eyeWeight(vec2 uv, vec2 center) {
   vec2 rel = (uv - center) / vec2(.035, .029);
@@ -41,14 +42,14 @@ void main() {
   vec2 uv = vUv;
   vec2 rel = uv - uPressUv;
   rel.x *= uAspect;
-  float w = pow(1.0 - smoothstep(0.0, .15, length(rel)), 2.0);
-  uv -= uDrag * w * uPressStrength;
-  uv -= (uv - uPressUv) * w * uPressStrength * .12;
+  float w = pow(1.0 - smoothstep(0.0, .20, length(rel)), 1.5);
+  uv -= uDrag * w * uPressStrength * 1.55;
+  uv -= (uv - uPressUv) * w * uPressStrength * .42;
   vec2 source = uv * uUvScale + uUvOffset;
   float eye = max(eyeWeight(source, uEyeLeft), eyeWeight(source, uEyeRight));
   source -= uGaze * eye * uEyeOpen;
   vec4 color = texture2D(uMap, clamp(source, vec2(0.0), vec2(1.0)));
-  gl_FragColor = vec4(color.rgb, uOpacity);
+  gl_FragColor = vec4(color.rgb, uOpacity * mix(1.0, smoothstep(0.0, .16, vUv.y), uEdgeFade));
 }
 `
 interface Options {
@@ -75,6 +76,7 @@ export class FaceVideoLayer {
     uGaze: { value: new THREE.Vector2() },
     uEyeLeft: { value: new THREE.Vector2(.389, .778) },
     uEyeRight: { value: new THREE.Vector2(.631, .853) }, uEyeOpen: { value: 1 },
+    uEdgeFade: { value: 0 },
   }
   private opacity = 1
   private regionHeight = 1
@@ -116,7 +118,7 @@ export class FaceVideoLayer {
     return new THREE.Vector2(x, (y - (1 - this.regionHeight)) / this.regionHeight)
   }
   isOnFace(x: number, y: number): boolean {
-    if (this.opacity < .7 || motionPrefs.reduced || document.documentElement.dataset.motion === 'paused') return false
+    if (this.opacity < .7 || motionPrefs.reduced) return false
     const local = this.localUv(x / window.innerWidth, 1 - y / window.innerHeight)
     if (local.y < 0 || local.y > 1) return false
     const src = local.multiply(this.uniforms.uUvScale.value).add(this.uniforms.uUvOffset.value)
@@ -132,17 +134,25 @@ export class FaceVideoLayer {
   setPointer(ndc: THREE.Vector2): void { this.pointer.copy(ndc) }
   setPress(point: { x: number; y: number } | null, strength: number): void {
     if (point) this.uniforms.uPressUv.value.copy(this.localUv(point.x, point.y))
-    this.press.to(point ? clamp(strength, 0, .65) : 0)
+    this.press.to(point ? clamp(strength, 0, 1) : 0)
     if (!point) this.drag.set(0, 0)
   }
   setDrag(x: number, y: number): void {
-    this.drag.set(clamp(x, -.045, .045), clamp(y / this.regionHeight, -.045, .045))
+    this.drag.set(clamp(x, -.075, .075), clamp(y / this.regionHeight, -.075, .075))
   }
   get pinchStrength(): number { return this.strength }
   get visible(): boolean { return this.object3d.visible }
+  getScreenPoint(sourceX: number, sourceY: number): { x: number; y: number } {
+    const uv = this.uniforms.uUvScale.value
+    const offset = this.uniforms.uUvOffset.value
+    const x = (sourceX - offset.x) / uv.x
+    const localY = (1 - sourceY - offset.y) / uv.y
+    return { x: x * window.innerWidth, y: (1 - (localY * this.regionHeight + 1 - this.regionHeight)) * window.innerHeight }
+  }
   resize(): void {
     this.aspect = this.camera.aspect
     this.regionHeight = window.innerWidth <= 600 ? .60 : 1
+    this.uniforms.uEdgeFade.value = Number(window.innerWidth <= 600)
     const viewH = 2 * Math.abs(Z) * Math.tan(this.camera.fov * Math.PI / 360)
     this.object3d.scale.set(viewH * this.aspect, viewH * this.regionHeight, 1)
     this.object3d.position.y = viewH * (1 - this.regionHeight) / 2
@@ -150,18 +160,19 @@ export class FaceVideoLayer {
     const scale = new THREE.Vector2(Math.min(1, regionAspect / SOURCE_ASPECT), Math.min(1, SOURCE_ASPECT / regionAspect))
     scale.divideScalar(window.innerWidth <= 600 ? 1.02 : 1.06)
     this.uniforms.uUvScale.value.copy(scale)
-    const targetX = window.innerWidth <= 600 ? .5 : .66
+    const targetX = window.innerWidth <= 600 ? .5 : .54
     this.uniforms.uUvOffset.value.set(.52 - scale.x * targetX, .5 - scale.y * .5)
     this.uniforms.uAspect.value = regionAspect
   }
   update(dt: number): void {
     if (this.disposed) return
     if (Math.abs(this.camera.aspect - this.aspect) > .001) this.resize()
-    const frozen = motionPrefs.reduced || document.documentElement.dataset.motion === 'paused'
+    const frozen = motionPrefs.reduced
+    const videoPaused = frozen || document.documentElement.dataset.motion === 'paused'
     const visible = this.opacity > .003 && !document.hidden
     this.object3d.visible = visible
     this.uniforms.uOpacity.value = this.opacity
-    if (!visible || frozen) {
+    if (!visible || videoPaused) {
       if (!this.video.paused) this.video.pause()
     } else if (!this.failed && this.video.paused && !this.playPending) {
       this.playPending = true

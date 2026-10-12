@@ -38,19 +38,19 @@ export function initV2(scroll: ScrollController): () => void {
 
   const motion = document.getElementById('motionToggle') as HTMLButtonElement | null
   let paused = false
-  try { paused = sessionStorage.getItem('doubao-motion') === 'paused' } catch { /* private browsing */ }
+  try { paused = sessionStorage.getItem('doubao-portrait-playback-v2') === 'paused' } catch { /* private browsing */ }
   const syncMotion = (): void => {
     const staticMode = paused || motionPrefs.reduced
     root.dataset.motion = staticMode ? 'paused' : 'playing'
     motion?.setAttribute('aria-pressed', String(staticMode))
     if (motion) {
-      motion.textContent = motionPrefs.reduced ? '已遵循减少动态设置' : staticMode ? '播放人物动态' : '暂停人物动态'
+      motion.textContent = motionPrefs.reduced ? '减少动态已开启' : staticMode ? '播放视频' : '暂停视频'
       motion.disabled = motionPrefs.reduced
     }
   }
   const toggleMotion = (): void => {
     paused = !paused
-    try { sessionStorage.setItem('doubao-motion', paused ? 'paused' : 'playing') } catch { /* optional */ }
+    try { sessionStorage.setItem('doubao-portrait-playback-v2', paused ? 'paused' : 'playing') } catch { /* optional */ }
     syncMotion()
   }
   motion?.addEventListener('click', toggleMotion)

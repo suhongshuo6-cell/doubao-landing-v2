@@ -75,6 +75,8 @@ export function createScroll(): ScrollController {
   ): void {
     if (lenis) {
       lenis.scrollTo(target, {
+        immediate: Boolean(opts.immediate),
+        force: true,
         duration: opts.immediate ? 0 : (opts.duration ?? 1.15),
         easing: (t: number) => 1 - Math.pow(1 - t, 3),
         lock: true,

@@ -43,6 +43,8 @@ export interface CharacterMetrics {
 }
 
 export interface CharacterRig extends Character {
+  readonly activeShot?: string
+  setView?(index: number): void
   readonly kind: CharacterKind
   readonly ready: boolean
   readonly object3d: THREE.Object3D
