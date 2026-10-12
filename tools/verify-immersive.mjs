@@ -150,8 +150,8 @@ try {
   assert.ok((await page.locator('[data-write-draft]').innerText()).length < 45)
   results.push('FAQ, accessible navigation and existing writing workbench remain usable')
 
-  for (const width of [390, 768]) {
-    const mobile = await browser.newPage({ viewport: { width, height: 900 }, hasTouch: true, isMobile: width < 600 })
+  for (const width of [390, 600, 700, 768]) {
+    const mobile = await browser.newPage({ viewport: { width, height: width === 600 ? 720 : 900 }, hasTouch: true, isMobile: width <= 767 })
     await load(mobile)
     assert.equal(await mobile.evaluate(() => document.documentElement.scrollWidth > innerWidth), false)
     const face = await mobile.evaluate(() => window.__DOUBAO.faceLayer.getScreenPoint(.65, .46))
@@ -169,7 +169,7 @@ try {
     assert.equal(await mobile.evaluate(() => window.__DOUBAO.state().faceVisible), false)
     const bounds = await mobile.locator('#heroAsk').boundingBox()
     assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= width + 1)
-    await chapter(mobile, 'characterStudio', width < 600 ? 480 : 0)
+    await chapter(mobile, 'characterStudio', width <= 767 ? 480 : 0)
     assert.equal(await mobile.evaluate(() => window.__DOUBAO.state().activeShot), 'body')
     await mobile.screenshot({ path: out + `09-${width}-whole-body.png` })
     await mobile.close()

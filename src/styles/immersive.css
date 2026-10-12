@@ -163,7 +163,7 @@ html.past-hero .experience-pass { display: block; }
   .story-progress { display: none; }
   .hero-tools { bottom: 30px; }
 }
-@media (max-width: 600px) {
+@media (max-width: 767px) {
   .product-detail { min-height: 280px; }
   .product-tabs { gap: 6px; }
   .product-tabs button { font-size: 10px; padding: 9px 11px; }

@@ -151,16 +151,16 @@ export class FaceVideoLayer {
   }
   resize(): void {
     this.aspect = this.camera.aspect
-    this.regionHeight = window.innerWidth <= 600 ? .60 : 1
-    this.uniforms.uEdgeFade.value = Number(window.innerWidth <= 600)
+    this.regionHeight = window.innerWidth <= 767 ? .60 : 1
+    this.uniforms.uEdgeFade.value = Number(window.innerWidth <= 767)
     const viewH = 2 * Math.abs(Z) * Math.tan(this.camera.fov * Math.PI / 360)
     this.object3d.scale.set(viewH * this.aspect, viewH * this.regionHeight, 1)
     this.object3d.position.y = viewH * (1 - this.regionHeight) / 2
     const regionAspect = this.aspect / this.regionHeight
     const scale = new THREE.Vector2(Math.min(1, regionAspect / SOURCE_ASPECT), Math.min(1, SOURCE_ASPECT / regionAspect))
-    scale.divideScalar(window.innerWidth <= 600 ? 1.02 : 1.06)
+    scale.divideScalar(window.innerWidth <= 767 ? 1.02 : 1.06)
     this.uniforms.uUvScale.value.copy(scale)
-    const targetX = window.innerWidth <= 600 ? .5 : .54
+    const targetX = window.innerWidth <= 767 ? .5 : .54
     this.uniforms.uUvOffset.value.set(.52 - scale.x * targetX, .5 - scale.y * .5)
     this.uniforms.uAspect.value = regionAspect
   }
