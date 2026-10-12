@@ -249,6 +249,8 @@ function boot(): void {
     const canvasEl = document.getElementById('stage')
     if (!(canvasEl instanceof HTMLCanvasElement)) throw new Error('缺少 #stage canvas')
     const canvas: HTMLCanvasElement = canvasEl
+    // v2-video：首屏脸视频层（盖在脸板之上，随取景淡出）
+    const faceVideo = document.getElementById('faceVideo') as HTMLVideoElement | null
 
     const stage = createStage(canvas)
     // 路径 B 的立绘板挂在相机下（天然屏幕对齐）。相机必须进场景图，
@@ -313,10 +315,14 @@ function boot(): void {
         onUpdate: () => {
           rig.setIntro(state.t)
           const blur = (1 - state.t) * 14
-          canvas.style.filter = blur > 0.25 ? `blur(${blur.toFixed(2)}px)` : ''
+          const bf = blur > 0.25 ? `blur(${blur.toFixed(2)}px)` : ''
+          canvas.style.filter = bf
+          // v2-video：视频与脸板同步虚化消散，揭幕接力不跳
+          if (faceVideo) faceVideo.style.filter = bf
         },
         onComplete: () => {
           canvas.style.filter = ''
+          if (faceVideo) faceVideo.style.filter = ''
           stage.setRenderScale(1)
         },
       })
@@ -337,7 +343,8 @@ function boot(): void {
     const rootEl = document.documentElement
 
     /** 只有脸在画面里足够大时才允许捏（规格：面部特写段） */
-    const PINCH_GATE = 0.38
+    // v2-video：首屏脸改由视频呈现，捏脸整体下线 → 门控设为 -1 恒不触发
+    const PINCH_GATE = -1
     let pinchHoldMs = 0
     let pinchSuccessCount = 0
     let pinchRewardDone = false
@@ -398,9 +405,9 @@ function boot(): void {
 
     const updateHud = (node: number): void => {
       const part = Math.min(5, Math.max(1, node + 1))
-      const labels = ['QUEST · 开场捏脸', 'QUEST · 定位', 'QUEST · 能力', 'QUEST · Alcoves', 'QUEST · 收束']
+      const labels = ['QUEST · 开场', 'QUEST · 定位', 'QUEST · 能力', 'QUEST · Alcoves', 'QUEST · 收束']
       const lines = [
-        '首屏捏一下脸，拿奖励',
+        '看她 · 往下滚进对话',
         '产品定位 · 继续下滚',
         '能力横滑 · 终端卡可玩',
         '三扇门 Flip 进出',
@@ -559,6 +566,18 @@ function boot(): void {
         // v2 分屏：对话舞台进入视口时把固定 canvas 平滑左移，让出右侧给对话卡
         const shiftX = (window as unknown as { __talkShiftX?: number }).__talkShiftX ?? 0
         canvas.style.transform = `translate3d(${shiftX.toFixed(2)}px, ${breathe.toFixed(2)}px, 0)`
+      }
+
+      // v2-video：首屏脸视频随取景交叉淡出（framing 0.02→0.12），滚走即暂停省资源
+      if (faceVideo) {
+        const vo = Math.max(0, Math.min(1, 1 - (rig.framing - 0.02) / 0.1))
+        const vos = vo.toFixed(2)
+        if (faceVideo.style.opacity !== vos) faceVideo.style.opacity = vos
+        if (vo <= 0.02) {
+          if (!faceVideo.paused) faceVideo.pause()
+        } else if (faceVideo.paused) {
+          void faceVideo.play().catch(() => undefined)
+        }
       }
 
       // ---- 面部命中与捏脸 ----

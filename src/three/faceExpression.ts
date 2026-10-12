@@ -121,8 +121,10 @@ export class FaceExpression {
   private readonly cleanups: Array<() => void> = []
 
   constructor() {
+    // v2-video：首屏脸改由预渲染视频呈现，shader 表情/眼神/捏脸整体下线（默认 off）。
+    // 仍保留 ?expr= 调试口，便于单独排查。
     const q = new URLSearchParams(window.location.search).get('expr')
-    this.forced = (q as Forced) ?? null
+    this.forced = (q as Forced) ?? 'off'
 
     const onSpeak = (e: Event): void => {
       const d = (e as CustomEvent<{ speaking?: boolean }>).detail

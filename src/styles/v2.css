@@ -593,3 +593,27 @@ html.booting { overflow: hidden; }
   .boot-veil__frame { animation: none; }
   .boot-veil__photo { filter: none; opacity: 1; }
 }
+
+/* ============================================================================
+   face-video — 首屏脸 = 预渲染 idle 循环视频（v2-video）
+   固定层、盖在 three 脸板之上；随取景下滚交叉淡出，回立绘运镜。
+   ========================================================================== */
+.face-video {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-stage);
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 38%;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 240ms linear;
+  will-change: opacity, filter;
+}
+/* 揭幕前不露出，避免和加载幕叠影 */
+html.booting .face-video { opacity: 0 !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  .face-video { transition: none; }
+}

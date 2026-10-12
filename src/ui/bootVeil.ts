@@ -48,6 +48,20 @@ export function initBootVeil(): () => void {
   let ready = false
   let decoded = 0
 
+  // v2-video：首屏脸视频可播放也算就绪条件之一（避免揭幕后视频还没影）
+  const video = document.getElementById('faceVideo') as HTMLVideoElement | null
+  let videoReady = !video
+  if (video) {
+    const vr = (): void => {
+      videoReady = true
+      tick()
+      maybeReveal()
+    }
+    video.addEventListener('loadeddata', vr, { once: true })
+    video.addEventListener('canplay', vr, { once: true })
+    if (video.readyState >= 2) videoReady = true
+  }
+
   /* ---- 真实进度：预解码 rig 贴图（同时预热 three 阶段要用的缓存） ---- */
   for (const name of RIG) {
     const im = new Image()
@@ -66,7 +80,7 @@ export function initBootVeil(): () => void {
 
   const progress = (): number => {
     const imgP = decoded / RIG.length
-    return Math.min(1, 0.12 + imgP * 0.58 + (ready ? 0.3 : 0))
+    return Math.min(1, 0.12 + imgP * 0.45 + (videoReady ? 0.13 : 0) + (ready ? 0.3 : 0))
   }
 
   const tick = (): void => {
@@ -119,6 +133,8 @@ export function initBootVeil(): () => void {
   }
 
   const maybeReveal = (): void => {
+    if (revealed) return
+    if (!(ready && videoReady)) return
     const elapsed = performance.now() - startedAt
     if (elapsed >= MIN_MS) reveal()
     else window.setTimeout(reveal, MIN_MS - elapsed)

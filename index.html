@@ -36,6 +36,20 @@
     <div class="bg-wash" aria-hidden="true"></div>
     <div class="hero-aurora" id="heroAurora" aria-hidden="true"><i></i><i></i><i></i></div>
     <canvas id="stage" class="stage" aria-hidden="true"></canvas>
+    <!-- v2-video：首屏脸 = 预渲染 idle 循环视频（全机器一致，无眼神/捏脸交互）；下滚交叉淡出回立绘运镜 -->
+    <video
+      id="faceVideo"
+      class="face-video"
+      src="./video/doubao_face_idle.mp4"
+      muted
+      loop
+      playsinline
+      autoplay
+      preload="auto"
+      disablepictureinpicture
+      tabindex="-1"
+      aria-hidden="true"
+    ></video>
     <canvas id="fx" class="fx-layer" aria-hidden="true"></canvas>
     <div id="cursorGlow" class="cursor-glow" aria-hidden="true"></div>
     <div class="talk-vignette" aria-hidden="true"></div>
@@ -78,13 +92,8 @@
         <!-- 首屏只留脸 + 安全边距内的装饰：中央脸部为禁区，任何元素不压脸不压眼 -->
         <div class="s-hero__dock">
           <div class="s-hero__body" data-parallax data-parallax-speed="-0.06">
-            <p class="hero__kicker">捏脸 · 对话 · 双主线</p>
+            <p class="hero__kicker">看她 · 对话 · 双主线</p>
             <h1 class="hero__claim hero__claim--soft" data-reveal-lines>把想法，说给豆包听。</h1>
-            <p class="hero__pinch-hint" id="heroPinchHint">脸上按住轻轻捏一下 → 解锁奖励</p>
-            <div class="hero__reward" id="heroReward" hidden>
-              <span class="hero__reward-badge">已捏通关</span>
-              <p id="heroRewardText">她轻声说：手感刚好。官方 Q 版也跟着跳了一下。</p>
-            </div>
           </div>
         </div>
 
@@ -667,7 +676,7 @@
     <aside class="interaction-hud" id="interactionHud" aria-live="polite" aria-atomic="true">
       <div class="interaction-hud__top"><span id="interactionStatus">QUEST</span><b id="interactionCount">01 / 05</b></div>
       <div class="interaction-hud__meter"><i></i><i></i><i></i><i></i><i></i></div>
-      <p id="interactionLine">移动视线，解锁下一镜</p>
+      <p id="interactionLine">向下滚动，解锁下一镜</p>
     </aside>
     <div class="character-whisper" id="characterWhisper" aria-live="polite"></div>
 
