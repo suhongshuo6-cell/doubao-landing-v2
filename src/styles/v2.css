@@ -605,7 +605,10 @@ html.booting { overflow: hidden; }
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: 50% 38%;
+  /* 裁剪窗偏上 + 整体放大：把视频模型烧在右下角的水印推出视口 */
+  object-position: 50% 30%;
+  transform: scale(1.12);
+  transform-origin: 50% 42%;
   pointer-events: none;
   /* 默认可见：不依赖帧循环点亮（后台标签帧循环暂停时也能显示首帧）；
      加载幕期间由 html.booting 压住，下滚由帧循环按取景淡出 */
