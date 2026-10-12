@@ -62,8 +62,8 @@ function springStep(
   const a = -2 * damp * w * vel - w * w * (pos - target)
   let nv = vel + a * dt
   let np = pos + nv * dt
-  // 速度硬帽，防止鼠标甩飞
-  const vmax = 4.2
+  // 速度硬帽，防止鼠标甩飞（v2：再收紧，杜绝高刷新/抖动设备上的震荡）
+  const vmax = 2.6
   if (nv > vmax) nv = vmax
   else if (nv < -vmax) nv = -vmax
   return [np, nv]
@@ -96,6 +96,8 @@ export class FaceExpression {
   private closeR = 0
   private gaze = new THREE.Vector2()
   private gazeTarget = new THREE.Vector2()
+  /** v2：视线目标低通层 —— 任何输入源（指针抖动/传感器噪声/闲时跳变）都先过这层再进弹簧，杜绝"眼睛乱晃" */
+  private gazeTargetSmooth = new THREE.Vector2()
   private gazeSmooth = new THREE.Vector2()
   private gazeVel = new THREE.Vector2()
   private idleTarget = new THREE.Vector2()
@@ -145,9 +147,10 @@ export class FaceExpression {
 
     const onOrient = (e: DeviceOrientationEvent): void => {
       if (e.gamma == null || e.beta == null) return
+      // v2：降低姿态增益（/25→/40），手持抖动不再直接变成眼神乱晃
       this.orient = new THREE.Vector2(
-        clamp(e.gamma / 25, -1, 1),
-        clamp(-(e.beta - 45) / 25, -1, 1),
+        clamp(e.gamma / 40, -1, 1),
+        clamp(-(e.beta - 45) / 40, -1, 1),
       )
     }
     if (motionPrefs.coarse) {
@@ -284,19 +287,20 @@ export class FaceExpression {
     else {
       const idle = this.time - this.lastPointerAt > 3.2
       if (this.orient) {
-        this.gazeTarget.set(deadzone(this.orient.x, 0.1), deadzone(this.orient.y, 0.1))
+        // v2：姿态死区加大（0.1→0.22），手持微抖不进眼神
+        this.gazeTarget.set(deadzone(this.orient.x, 0.22), deadzone(this.orient.y, 0.22))
       } else if (idle) {
         if (this.time >= this.nextIdle) {
-          // 多数时间看向镜头；偶尔轻飘
-          if (Math.random() < 0.62) this.idleTarget.set(0, 0)
-          else this.idleTarget.set(rand(-0.4, 0.4), rand(-0.22, 0.28))
-          this.nextIdle = this.time + rand(2.0, 4.5)
+          // 多数时间看向镜头；偶尔轻飘（v2：幅度收窄、更少见）
+          if (Math.random() < 0.75) this.idleTarget.set(0, 0)
+          else this.idleTarget.set(rand(-0.28, 0.28), rand(-0.16, 0.2))
+          this.nextIdle = this.time + rand(2.6, 5.5)
         }
         this.gazeTarget.copy(reduced ? new THREE.Vector2() : this.idleTarget)
       } else {
-        // 鼠标：略放大 + 中心死区；比上一版更明显一点
-        const mx = deadzone(clamp(this.pointer.x * 2.05, -1, 1), 0.08)
-        const my = deadzone(clamp(this.pointer.y * 1.85, -1, 1), 0.08)
+        // 鼠标：v2 降增益(2.05→1.6 / 1.85→1.5)、加死区(0.08→0.14)，触摸板噪声不再驱动眼神
+        const mx = deadzone(clamp(this.pointer.x * 1.6, -1, 1), 0.14)
+        const my = deadzone(clamp(this.pointer.y * 1.5, -1, 1), 0.14)
         this.gazeTarget.set(mx, my)
       }
       if (this.think > 0.1) {
@@ -307,14 +311,20 @@ export class FaceExpression {
       }
     }
 
-    // 微跳视：更稀、更小，只在已接近目标时点一下
-    const nearTarget = Math.hypot(this.gaze.x - this.gazeTarget.x, this.gaze.y - this.gazeTarget.y) < 0.12
+    // 微跳视：v2 更稀、更小，只在已接近目标时点一下
+    const nearTarget =
+      Math.hypot(this.gaze.x - this.gazeTarget.x, this.gaze.y - this.gazeTarget.y) < 0.12
     if (!f && !reduced && nearTarget && this.time >= this.nextSaccade) {
-      this.saccade.set(rand(-0.035, 0.035), rand(-0.022, 0.022))
-      this.nextSaccade = this.time + rand(1.4, 3.2)
+      this.saccade.set(rand(-0.02, 0.02), rand(-0.012, 0.012))
+      this.nextSaccade = this.time + rand(2.2, 4.5)
     }
     this.saccade.x = expApproach(this.saccade.x, 0, 6, dt)
     this.saccade.y = expApproach(this.saccade.y, 0, 6, dt)
+
+    // v2：目标低通 —— 指针抖动/传感器噪声/闲时跳变先被这层抹平，弹簧只追平滑目标
+    const lpRate = reduced ? 8 : 3.2
+    this.gazeTargetSmooth.x = expApproach(this.gazeTargetSmooth.x, this.gazeTarget.x, lpRate, dt)
+    this.gazeTargetSmooth.y = expApproach(this.gazeTargetSmooth.y, this.gazeTarget.y, lpRate, dt)
 
     // 临界阻尼弹簧：调试态瞬时到位；常态柔和、不超调
     if (f) {
@@ -322,11 +332,11 @@ export class FaceExpression {
       this.gazeVel.set(0, 0)
       this.gazeSmooth.copy(this.gazeTarget)
     } else {
-      const freq = reduced ? 4.5 : 6.8
-      const desiredX = this.gazeTarget.x + this.saccade.x
-      const desiredY = this.gazeTarget.y + this.saccade.y
-      ;[this.gaze.x, this.gazeVel.x] = springStep(this.gaze.x, this.gazeVel.x, desiredX, dt, freq, 1.05)
-      ;[this.gaze.y, this.gazeVel.y] = springStep(this.gaze.y, this.gazeVel.y, desiredY, dt, freq, 1.05)
+      const freq = reduced ? 4.5 : 5.2
+      const desiredX = this.gazeTargetSmooth.x + this.saccade.x
+      const desiredY = this.gazeTargetSmooth.y + this.saccade.y
+      ;[this.gaze.x, this.gazeVel.x] = springStep(this.gaze.x, this.gazeVel.x, desiredX, dt, freq, 1.1)
+      ;[this.gaze.y, this.gazeVel.y] = springStep(this.gaze.y, this.gazeVel.y, desiredY, dt, freq, 1.1)
       this.gaze.x = clamp(this.gaze.x, -1.05, 1.05)
       this.gaze.y = clamp(this.gaze.y, -1.05, 1.05)
     }

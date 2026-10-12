@@ -42,8 +42,8 @@ export const FACE_EXPR = {
   /** 腮红中心与半径（px） */
   cheekL: { c: n(500, 262), r: [82, 52] as const },
   cheekR: { c: n(885, 214), r: [74, 48] as const },
-  /** 视线最大位移（px，原图尺度） */
-  gazePx: [13.2, 6.6] as const,  // slightly more obvious follow
+  /** 视线最大位移（px，原图尺度）—— v2：略收，配合低通让眼神更稳 */
+  gazePx: [11.5, 5.8] as const,
   /** 说话时下唇最大下移（px） */
   mouthOpenPx: 20,
 }
