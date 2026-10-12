@@ -625,3 +625,14 @@ html.booting .face-video { opacity: 0 !important; }
 
 /* v2-video：视频脸偏亮，边缘光扫投在上面会形成脏光斑 —— 下线该实验层 */
 .hero-rimlight { display: none; }
+
+/* v2-video：视频脸偏亮，给首屏文案加左/下 scrim 保证对比度 */
+.s-hero__wash {
+  inset: 0 auto auto 0;
+  width: 100%;
+  height: 100%;
+  opacity: 1;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--bg) 86%, transparent) 0%, color-mix(in srgb, var(--bg) 48%, transparent) 26%, transparent 50%),
+    linear-gradient(0deg, color-mix(in srgb, var(--bg) 78%, transparent) 0%, transparent 26%);
+}
