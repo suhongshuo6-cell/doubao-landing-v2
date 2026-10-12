@@ -408,3 +408,188 @@ html[data-theatre="1"] .talk-vignette { opacity: 1; }
   }
   .hero-rimlight { display: none; }
 }
+
+/* ============================================================================
+   boot-veil — 开场「暗房显影」加载幕（概念 A + iris 揭幕）
+   ========================================================================== */
+html.booting { overflow: hidden; }
+
+.boot-veil {
+  --iris: 0%;
+  --vscale: 1.04;
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: var(--bg);
+  /* iris 开圆：中心透明孔随 --iris 扩张，露出下层正片 */
+  -webkit-mask-image: radial-gradient(circle at 50% 44%, transparent var(--iris), #000 calc(var(--iris) + 3%));
+  mask-image: radial-gradient(circle at 50% 44%, transparent var(--iris), #000 calc(var(--iris) + 3%));
+}
+.boot-veil__inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  transform: scale(var(--vscale));
+}
+.boot-veil__paper {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(120% 90% at 50% 40%, var(--surface) 0%, var(--bg) 55%, var(--bg-alt) 100%);
+}
+/* 显影主体：正在加载的那张真脸（blur/灰阶由 JS 随进度驱动） */
+.boot-veil__photo {
+  position: relative;
+  width: min(72vmin, 620px);
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 6px;
+  opacity: 0.2;
+  filter: blur(22px) grayscale(1);
+  box-shadow: var(--shadow-2);
+}
+/* 银盐颗粒 */
+.boot-veil__grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  mix-blend-mode: multiply;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(18, 19, 26, 0.05) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgba(18, 19, 26, 0.04) 0 1px, transparent 1px 4px);
+  animation: boot-grain 0.9s steps(3) infinite;
+}
+@keyframes boot-grain {
+  0% { transform: translate3d(0, 0, 0); }
+  33% { transform: translate3d(-2px, 1px, 0); }
+  66% { transform: translate3d(2px, -1px, 0); }
+  100% { transform: translate3d(0, 0, 0); }
+}
+/* 扫描线：每 1.2s 掠过一次 */
+.boot-veil__scan {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -12%;
+  height: 10%;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--brand) 16%, transparent) 45%, color-mix(in srgb, var(--surface) 70%, transparent) 50%, color-mix(in srgb, var(--brand) 16%, transparent) 55%, transparent);
+  animation: boot-scan 1.2s var(--ease-in) infinite;
+}
+@keyframes boot-scan {
+  from { transform: translateY(0); }
+  to { transform: translateY(1250%); }
+}
+/* 取景器对焦括号（点缀）：搜焦微抖 → 锁定回正 */
+.boot-veil__frame {
+  position: absolute;
+  width: min(78vmin, 680px);
+  aspect-ratio: 16 / 9;
+  pointer-events: none;
+  animation: boot-hunt 1.6s var(--ease-in-out) infinite;
+}
+.boot-veil__frame i {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  border: 2px solid var(--brand-a40);
+  transition: border-color 200ms var(--ease-out), width 200ms var(--ease-spring), height 200ms var(--ease-spring);
+}
+.boot-veil__frame i:nth-child(1) { left: 0; top: 0; border-right: 0; border-bottom: 0; }
+.boot-veil__frame i:nth-child(2) { right: 0; top: 0; border-left: 0; border-bottom: 0; }
+.boot-veil__frame i:nth-child(3) { left: 0; bottom: 0; border-right: 0; border-top: 0; }
+.boot-veil__frame i:nth-child(4) { right: 0; bottom: 0; border-left: 0; border-top: 0; }
+@keyframes boot-hunt {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.035); }
+}
+.boot-veil.is-lock .boot-veil__frame { animation: none; transform: scale(1); }
+.boot-veil.is-lock .boot-veil__frame i {
+  border-color: var(--brand);
+  width: 34px;
+  height: 34px;
+}
+/* HUD：mark + mono 百分比 */
+.boot-veil__hud {
+  position: absolute;
+  bottom: clamp(64px, 12vh, 120px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+.boot-veil__mark {
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--ink);
+}
+.boot-veil__pct {
+  font-family: var(--font-mono);
+  font-size: var(--fs-h3);
+  font-weight: 600;
+  color: var(--brand-deep);
+  font-variant-numeric: tabular-nums;
+}
+/* 红进度线 */
+.boot-veil__bar {
+  position: absolute;
+  bottom: clamp(48px, 9.5vh, 96px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(46vmin, 380px);
+  height: 2px;
+  border-radius: 2px;
+  background: var(--ink-a08);
+  overflow: hidden;
+}
+.boot-veil__bar i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--brand);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 240ms var(--ease-out);
+}
+.boot-veil__label {
+  position: absolute;
+  bottom: clamp(24px, 5.5vh, 56px);
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  letter-spacing: var(--ls-wide);
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+/* 揭幕白闪 */
+.boot-veil__flash {
+  position: absolute;
+  inset: 0;
+  background: var(--surface);
+  opacity: 0;
+  pointer-events: none;
+}
+.boot-veil.is-flash .boot-veil__flash {
+  animation: boot-flash 320ms var(--ease-out) forwards;
+}
+@keyframes boot-flash {
+  0% { opacity: 0; }
+  18% { opacity: 0.85; }
+  100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .boot-veil__grain,
+  .boot-veil__scan,
+  .boot-veil__frame { animation: none; }
+  .boot-veil__photo { filter: none; opacity: 1; }
+}

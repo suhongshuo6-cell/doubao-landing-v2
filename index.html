@@ -13,6 +13,24 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   </head>
   <body>
+    <!-- ══ 开场加载幕：暗房显影 → iris 揭幕（bootVeil.ts 增强） ══ -->
+    <div id="bootVeil" class="boot-veil" role="status" aria-busy="true" aria-label="页面加载中">
+      <div class="boot-veil__inner" aria-hidden="true">
+        <div class="boot-veil__paper"></div>
+        <img class="boot-veil__photo" id="bootPhoto" alt="" src="./img/rig/doubao_face.webp?v=2" />
+        <div class="boot-veil__grain"></div>
+        <div class="boot-veil__scan"></div>
+        <div class="boot-veil__frame"><i></i><i></i><i></i><i></i></div>
+        <div class="boot-veil__hud">
+          <span class="boot-veil__mark">豆包</span>
+          <span class="boot-veil__pct" id="bootPct">00</span>
+        </div>
+        <div class="boot-veil__bar"><i id="bootBar"></i></div>
+        <p class="boot-veil__label" id="bootLabel">显影中 · DEVELOPING</p>
+      </div>
+      <div class="boot-veil__flash" aria-hidden="true"></div>
+    </div>
+
     <a class="skip" href="#main">跳到主要内容</a>
 
     <div class="bg-wash" aria-hidden="true"></div>

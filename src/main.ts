@@ -18,6 +18,7 @@ import { EASE_IN } from './motion/eases'
 import { createSpring, SPRING } from './lib/spring'
 import { motionPrefs } from './lib/motionPrefs'
 import { initNav } from './ui/nav'
+import { initBootVeil } from './ui/bootVeil'
 import { initProgressRail } from './ui/progressRail'
 import { initContentSections, initStageSections } from './sections'
 import { initV2 } from './sections/v2'
@@ -63,6 +64,9 @@ const force =
     : undefined
 
 function boot(): void {
+  /* ═══════════ 阶段 0：开场加载幕（暗房显影 → iris 揭幕） ═══════════ */
+  initBootVeil()
+
   /* ═══════════ 阶段 1：不依赖 three，立刻跑 ═══════════ */
 
   const loop = createFrameLoop()
@@ -272,15 +276,26 @@ function boot(): void {
         // 角色地标可能与默认值不同（例如归一化后的 glb），重建取景曲线
         rig.updateMetrics(rigged.metrics)
         document.documentElement.dataset.character = rigged.kind
+        document.dispatchEvent(new CustomEvent('doubao:stage-ready'))
         if (motionPrefs.reduced || params.get('nointro') === '1' || params.has('p')) {
           rig.setIntro(1)
         } else {
-          runIntro()
+          // 等加载幕 iris 揭幕启动的同一帧再跑开场推近，两段运动无缝接力
+          let introStarted = false
+          const openOnce = (): void => {
+            if (introStarted) return
+            introStarted = true
+            document.removeEventListener('doubao:veil-open', openOnce)
+            runIntro()
+          }
+          document.addEventListener('doubao:veil-open', openOnce)
+          window.setTimeout(openOnce, 10000) // 兜底：加载幕异常也不至于不开场
         }
       })
       .catch((error: unknown) => {
         console.error('[character] 装配失败', error)
         document.documentElement.dataset.character = 'none'
+        document.dispatchEvent(new CustomEvent('doubao:stage-failed'))
       })
 
     /* ---- 开场：dolly in + 900ms 景深虚化消散 ---- */
@@ -697,6 +712,7 @@ function boot(): void {
     // 3D 层炸了也不能连累文字内容 —— 内容在阶段 1 就已经装好了
     console.error('[stage] 3D 层装配失败', error)
     document.documentElement.dataset.character = 'none'
+    document.dispatchEvent(new CustomEvent('doubao:stage-failed'))
   })
 }
 
