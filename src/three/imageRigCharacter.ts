@@ -162,8 +162,9 @@ export class ImageRigCharacter implements CharacterRig {
   /* ------------------------------------------------------------- 加载 -- */
 
   private async loadTexture(file: string): Promise<THREE.Texture> {
+    // public/ 资源不带哈希文件名，换素材后浏览器/CDN 会读旧缓存 —— 用版本号强制刷新
     const tex = await new THREE.TextureLoader().loadAsync(
-      `${import.meta.env.BASE_URL}img/rig/${file}`,
+      `${import.meta.env.BASE_URL}img/rig/${file}?v=2`,
     )
     // 照片按原样采样：自定义 ShaderMaterial 不走 three 的 colorspace_fragment，
     // 这里如果用 SRGBColorSpace，贴图会被线性化但输出不做 sRGB 编码，画面整体发灰。
