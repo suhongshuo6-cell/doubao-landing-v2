@@ -48,8 +48,8 @@ export function initBootVeil(): () => void {
   let ready = false
   let decoded = 0
 
-  // v2-video：首屏脸视频可播放也算就绪条件之一（避免揭幕后视频还没影）
-  const video = document.getElementById('faceVideo') as HTMLVideoElement | null
+  // v3：首屏脸视频（压缩后 mp4，hidden 纹理源）可播放也算就绪条件之一
+  const video = document.getElementById('faceSrc') as HTMLVideoElement | null
   let videoReady = !video
   if (video) {
     const vr = (): void => {

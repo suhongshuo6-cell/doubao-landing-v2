@@ -249,8 +249,6 @@ function boot(): void {
     const canvasEl = document.getElementById('stage')
     if (!(canvasEl instanceof HTMLCanvasElement)) throw new Error('缺少 #stage canvas')
     const canvas: HTMLCanvasElement = canvasEl
-    // v2-video：首屏脸视频层（盖在脸板之上，随取景淡出）
-    const faceVideo = document.getElementById('faceVideo') as HTMLVideoElement | null
 
     const stage = createStage(canvas)
     // 路径 B 的立绘板挂在相机下（天然屏幕对齐）。相机必须进场景图，
@@ -259,6 +257,19 @@ function boot(): void {
 
     const rig = createCameraRig({ stage, metrics: DEFAULT_METRICS })
     initStageSections({ stage })
+
+    /* ---- v3：首屏视频脸交互层（捏脸 + 眼神跟随） ---- */
+    let faceLayer: import('./three/faceVideo').FaceVideoLayer | null = null
+    const faceSrc = document.getElementById('faceSrc') as HTMLVideoElement | null
+    const faceGif = document.getElementById('faceGif') as HTMLImageElement | null
+    if (faceSrc) {
+      const { FaceVideoLayer } = await import('./three/faceVideo')
+      faceLayer = new FaceVideoLayer({
+        camera: stage.camera,
+        video: faceSrc,
+        fallbackImg: faceGif,
+      })
+    }
 
     /* ---- 角色：双轨资产自动探测 ---- */
     let character: CharacterRig | null = null
@@ -317,21 +328,16 @@ function boot(): void {
           const blur = (1 - state.t) * 14
           const bf = blur > 0.25 ? `blur(${blur.toFixed(2)}px)` : ''
           canvas.style.filter = bf
-          // v2-video：视频与脸板同步虚化消散，揭幕接力不跳
-          if (faceVideo) faceVideo.style.filter = bf
         },
         onComplete: () => {
           canvas.style.filter = ''
-          if (faceVideo) faceVideo.style.filter = ''
           stage.setRenderScale(1)
         },
       })
     }
 
-    /* ---- 指针：面部 raycast → 捏脸 ---- */
-    const raycaster = new THREE.Raycaster()
+    /* ---- 指针：视频脸命中 + 捏脸 ---- */
     const ndc = new THREE.Vector2(0, 0)
-    const hitPoint = new THREE.Vector3()
     const ring = document.getElementById('pinchRing')
     const hud = document.getElementById('interactionHud')
     const hudStatus = document.getElementById('interactionStatus')
@@ -342,9 +348,8 @@ function boot(): void {
     const ringY = createSpring(SPRING.pointer)
     const rootEl = document.documentElement
 
-    /** 只有脸在画面里足够大时才允许捏（规格：面部特写段） */
-    // v2-video：首屏脸改由视频呈现，捏脸整体下线 → 门控设为 -1 恒不触发
-    const PINCH_GATE = -1
+    /** 只有脸在画面里足够大时才允许捏（首屏视频脸段） */
+    const PINCH_GATE = 0.06
     let pinchHoldMs = 0
     let pinchSuccessCount = 0
     let pinchRewardDone = false
@@ -388,6 +393,8 @@ function boot(): void {
     let pointerInside = false
     let pressing = false
     let hoveringFace = false
+    let pointerClientX = 0
+    let pointerClientY = 0
     let pressOrigin: { x: number; y: number } | null = null
     let longPressTimer = 0
     let lastPressing = false
@@ -439,8 +446,11 @@ function boot(): void {
     const trackPointer = (event: PointerEvent): void => {
       ndc.x = (event.clientX / window.innerWidth) * 2 - 1
       ndc.y = -(event.clientY / window.innerHeight) * 2 + 1
+      pointerClientX = event.clientX
+      pointerClientY = event.clientY
       rig.setPointer(ndc)
       character?.setPointer(ndc)
+      faceLayer?.setPointer(ndc)
       ringX.to(event.clientX)
       ringY.to(event.clientY)
       pointerInside = true
@@ -533,6 +543,7 @@ function boot(): void {
 
     /* ---- 主循环：唯一的一帧 ---- */
     let lastNode = -1
+    let talkScale = 1
 
     loop.add((dt) => {
       const state = scroll.read()
@@ -546,6 +557,12 @@ function boot(): void {
         // 速度拖影：慢滚时 --vel 恒为 0，画面完全平静
         character.setSmear?.(Number(rootEl.style.getPropertyValue('--vel')) || 0)
         character.update(dt)
+      }
+
+      // v3：首屏视频脸（捏脸 + 眼神跟随），随取景淡出
+      if (faceLayer) {
+        faceLayer.setFraming(rig.framing)
+        faceLayer.update(dt)
       }
 
       if (pressing && !lastPressing) {
@@ -563,45 +580,32 @@ function boot(): void {
       lastPressing = pressing
       if (canvas) {
         const breathe = Math.sin(performance.now() * 0.00135) * 0.7
-        // v2 分屏：对话舞台进入视口时把固定 canvas 平滑左移，让出右侧给对话卡
-        const shiftX = (window as unknown as { __talkShiftX?: number }).__talkShiftX ?? 0
-        canvas.style.transform = `translate3d(${shiftX.toFixed(2)}px, ${breathe.toFixed(2)}px, 0)`
+        // v3 构图：对话舞台进入视口时角色居中、微微放大上移（脸从卡片后透出），不再左移分屏
+        const win = window as unknown as { __talkShiftX?: number; __talkActive?: boolean }
+        const shiftX = win.__talkShiftX ?? 0
+        const talkOn = win.__talkActive === true && !motionPrefs.reduced
+        talkScale += ((talkOn ? 1.16 : 1) - talkScale) * Math.min(1, dt * 2.6)
+        canvas.style.transform =
+          `translate3d(${shiftX.toFixed(2)}px, ${breathe.toFixed(2)}px, 0) scale(${talkScale.toFixed(4)})`
       }
 
-      // v2-video：首屏脸视频随取景交叉淡出（framing 0.02→0.12），滚走即暂停省资源
-      if (faceVideo) {
-        const vo = Math.max(0, Math.min(1, 1 - (rig.framing - 0.02) / 0.1))
-        const vos = vo.toFixed(2)
-        if (faceVideo.style.opacity !== vos) faceVideo.style.opacity = vos
-        if (vo <= 0.02) {
-          if (!faceVideo.paused) faceVideo.pause()
-        } else if (faceVideo.paused) {
-          void faceVideo.play().catch(() => undefined)
-        }
-      }
-
-      // ---- 面部命中与捏脸 ----
+      // ---- 面部命中与捏脸（视频脸：源坐标椭圆命中）----
       hoveringFace = false
-      if (character && pointerInside && rig.framing < PINCH_GATE) {
-        raycaster.setFromCamera(ndc, stage.camera)
-        const hits = raycaster.intersectObject(character.faceProxy, false)
-        const first = hits[0]
-        if (first) {
-          hoveringFace = true
-          hitPoint.copy(first.point)
-        }
+      if (faceLayer && pointerInside && rig.framing < PINCH_GATE) {
+        hoveringFace = faceLayer.isOnFace(pointerClientX, pointerClientY)
       }
 
-      if (character) {
+      if (faceLayer) {
         if (hoveringFace) {
-          // v2：触感加强 —— 悬停就有轻微凹陷，按住更深，轻点给一个即时脉冲
+          // 触感：悬停轻微凹陷，按住更深，轻点给一个即时脉冲
           const base = pressing ? 1.25 : 0.45
           const strength = Math.min(2.6, base * pinchBoost + tapPulse * 0.9)
-          character.pinch(hitPoint, strength)
+          faceLayer.setPress({ x: ndc.x * 0.5 + 0.5, y: ndc.y * 0.5 + 0.5 }, strength)
         } else {
-          character.pinch(null, 0)
+          faceLayer.setPress(null, 0)
         }
       }
+      character?.pinch(null, 0)
       // 脉冲随帧衰减（约 0.3s 回弹）
       tapPulse = Math.max(0, tapPulse - dt * 3.4)
 
@@ -611,7 +615,7 @@ function boot(): void {
       if (ring) {
         const x = ringX.update(dt)
         const y = ringY.update(dt)
-        const strength = character?.pinchStrength ?? 0
+        const strength = faceLayer?.pinchStrength ?? 0
         ring.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${(1 - strength * 0.12).toFixed(3)})`
       }
       rootEl.classList.toggle('pinch-active', hoveringFace)
@@ -640,6 +644,7 @@ function boot(): void {
       fx?.resize()
       stage.resize()
       rig.resize()
+      faceLayer?.resize()
       anchorMap.refresh()
       window.clearTimeout(resizeTimer)
       resizeTimer = window.setTimeout(() => {
@@ -706,6 +711,9 @@ function boot(): void {
         anchorMap,
         get character() {
           return character
+        },
+        get faceLayer() {
+          return faceLayer
         },
         goTo: (t: number) => scroll.scrollTo(anchorMap.toScroll(t), { duration: 1.2 }),
         state: () => ({

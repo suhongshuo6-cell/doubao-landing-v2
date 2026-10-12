@@ -17,7 +17,7 @@
     <div id="bootVeil" class="boot-veil" role="status" aria-busy="true" aria-label="页面加载中">
       <div class="boot-veil__inner" aria-hidden="true">
         <div class="boot-veil__paper"></div>
-        <img class="boot-veil__photo" id="bootPhoto" alt="" src="./img/rig/doubao_face.webp?v=2" />
+        <img class="boot-veil__photo" id="bootPhoto" alt="" src="./video/doubao_face_v3_still.webp" />
         <div class="boot-veil__grain"></div>
         <div class="boot-veil__scan"></div>
         <div class="boot-veil__frame"><i></i><i></i><i></i><i></i></div>
@@ -36,11 +36,11 @@
     <div class="bg-wash" aria-hidden="true"></div>
     <div class="hero-aurora" id="heroAurora" aria-hidden="true"><i></i><i></i><i></i></div>
     <canvas id="stage" class="stage" aria-hidden="true"></canvas>
-    <!-- v2-video：首屏脸 = 预渲染 idle 循环视频（全机器一致，无眼神/捏脸交互）；下滚交叉淡出回立绘运镜 -->
+    <!-- v3：首屏脸 = 用户新视频（WebGL 合成层 faceVideo.ts：捏脸 + 眼神跟随）；
+         主源 mp4（~250KB），GIF 兜底；两元素仅作纹理源，不直接上屏 -->
     <video
-      id="faceVideo"
-      class="face-video"
-      src="./video/doubao_face_idle.mp4"
+      id="faceSrc"
+      src="./video/doubao_face_v3.mp4"
       muted
       loop
       playsinline
@@ -49,7 +49,9 @@
       disablepictureinpicture
       tabindex="-1"
       aria-hidden="true"
+      hidden
     ></video>
+    <img id="faceGif" src="./video/doubao_face_v3.gif" alt="" width="400" height="225" hidden aria-hidden="true" />
     <canvas id="fx" class="fx-layer" aria-hidden="true"></canvas>
     <div id="cursorGlow" class="cursor-glow" aria-hidden="true"></div>
     <div class="talk-vignette" aria-hidden="true"></div>

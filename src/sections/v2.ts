@@ -63,7 +63,7 @@ export function initV2(): () => void {
   enter?.addEventListener('click', onEnter)
   destroyers.push(() => enter?.removeEventListener('click', onEnter))
 
-  /* ---------------- 3. 分屏 talkShift：canvas 左移 ---------------- */
+  /* ---------------- 3. 对话舞台：角色居中（卡片居中构图，不再左移分屏） ---------------- */
   let target = 0
   let current = 0
   if (stage && 'IntersectionObserver' in window) {
@@ -71,7 +71,7 @@ export function initV2(): () => void {
       (entries) => {
         for (const en of entries) {
           const on = en.isIntersecting && en.intersectionRatio > 0.25
-          target = on ? -0.16 * window.innerWidth : 0
+          target = 0 // v3：居中构图，shift 恒 0；talkActive 仍驱动放大上移
           win.__talkActive = on
           root.dataset.talk = on ? '1' : '0'
         }
