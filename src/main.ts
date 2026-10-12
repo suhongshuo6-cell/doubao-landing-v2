@@ -402,6 +402,11 @@ function boot(): void {
 
     const cancelPress = (): void => {
       window.clearTimeout(longPressTimer)
+      // v2-fix：松手当即结算捏脸奖励，不再依赖"松手后下一帧"的 lastPressing 时序
+      // （帧循环暂停/掉帧时旧时序会丢奖励，表现为"捏脸没了"）
+      if (pressing && hoveringFace && pinchHoldMs > 280) {
+        firePinchReward(ringX.value, ringY.value)
+      }
       pressing = false
       pressOrigin = null
     }
@@ -538,10 +543,8 @@ function boot(): void {
       }
 
       // ---- 面部命中与捏脸 ----
-      // v2：分屏对话舞台激活时 canvas 被左移，raycast 的屏幕映射会失准，暂停捏脸
-      const talkActive = (window as unknown as { __talkActive?: boolean }).__talkActive === true
       hoveringFace = false
-      if (character && pointerInside && !talkActive && rig.framing < PINCH_GATE) {
+      if (character && pointerInside && rig.framing < PINCH_GATE) {
         raycaster.setFromCamera(ndc, stage.camera)
         const hits = raycaster.intersectObject(character.faceProxy, false)
         const first = hits[0]
