@@ -1,0 +1,42 @@
+/* Keep the motion within each content panel, away from the portrait's stage. */
+.ability-deck { position: relative; isolation: isolate; perspective: 850px; margin: 16px 0 18px; }
+.ability-deck::before, .ability-deck::after { content: ''; position: absolute; inset: 7px 7px -6px; background: #eee6da; border: 1px solid rgba(156,129,98,.16); border-radius: 20px; z-index: -1; transform: rotate(-2deg); }
+.ability-deck::after { inset: 11px 15px -11px; background: #e2d8ca; transform: rotate(2deg); z-index: -2; }
+.ability-deck__card { position: relative; background: #fffaf2; border: 1px solid rgba(143,113,78,.13); border-radius: 20px; padding: 23px; min-height: 280px; cursor: grab; touch-action: pan-y; transition: transform .32s cubic-bezier(.2,.8,.2,1); box-shadow: 0 15px 30px -25px rgba(70,46,24,.3); }
+.ability-deck__card.is-dragging { cursor: grabbing; transition: none; user-select: none; }
+.ability-deck__card blockquote { margin-bottom: 0; }
+.deck-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 15px; }
+.deck-controls > button { border: 1px solid #d8cfc2; width: 34px; height: 34px; border-radius: 50%; background: transparent; color: #655440; font-size: 16px; }
+.deck-controls > button:hover { background: #fffaf2; }
+.deck-count { font: 10px var(--font-mono); color: #947c62; }
+.little-guide { min-height: 34px; display: flex; align-items: center; gap: 8px; font-size: 10px; line-height: 1.8; color: #8a7662; }
+.little-guide img { flex: 0 0 28px; border-radius: 50%; box-shadow: 0 0 0 2px #fff; }
+.little-guide img[hidden] { display: none; }
+.deck-controls .little-guide { flex: 1; justify-content: flex-end; }
+.inspiration-shuffle { display: flex; gap: 8px; align-items: center; margin: 17px 0 4px auto; padding: 8px 13px; background: rgba(255,255,255,.5); border: 1px dashed #c5aa8d; border-radius: 99px; font-size: 11px; color: #9a563e; }
+.inspiration-shuffle:hover { background: #fff9ef; }
+.day-dial { display: grid; gap: 10px; font-size: 10px; color: #8a7662; padding: 19px 6px 21px; max-width: 100%; }
+.day-dial input { width: 100%; accent-color: #c65337; cursor: ew-resize; }
+.day-dial__marks { display: flex; justify-content: space-between; }
+.day-dial__marks i { font-style: normal; }
+.day-timeline > .little-guide { padding: 12px 4px 0; }
+.quiet-portrait { width: 100%; display: flex; justify-content: space-between; background: transparent; border: 0; border-top: 1px solid rgba(121,94,65,.18); padding: 18px 0 0; margin-top: 23px; font-size: 12px; color: #8d503c; }
+.portrait-viewer { position: fixed; inset: 0; width: 100%; max-width: none; height: 100%; max-height: none; border: 0; margin: 0; padding: 0; background: transparent; color: #4b4034; overflow: hidden; }
+.portrait-viewer::backdrop { background: transparent; }
+.portrait-viewer__toolbar { position: absolute; left: 50%; bottom: max(8px,env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; align-items: center; gap: 24px; width: max-content; max-width: calc(100% - 28px); background: rgba(255,251,244,.88); backdrop-filter: blur(14px); border: 1px solid rgba(255,255,255,.8); border-radius: 99px; padding: 4px 8px 4px 16px; box-shadow: 0 8px 35px rgba(70,46,24,.09); font-size: 11px; line-height: 1.4; }
+.portrait-viewer__toolbar > div { display: flex; gap: 3px; }
+.portrait-viewer button { padding: 8px 13px; border: 0; background: transparent; border-radius: 99px; font: inherit; color: inherit; white-space: nowrap; }
+.portrait-viewer [aria-pressed="true"] { background: #e7dccb; }
+.portrait-viewer .portrait-viewer__exit { background: #39372f; color: #fff9ed; }
+html.portrait-quiet { overflow: hidden; }
+html.portrait-quiet main, html.portrait-quiet .nav, html.portrait-quiet footer, html.portrait-quiet .story-progress, html.portrait-quiet .experience-pass, html.portrait-quiet .rail, html.portrait-quiet .fx-layer, html.portrait-quiet .cursor-glow, html.portrait-quiet .ambient-spot, html.portrait-quiet .character-whisper, html.portrait-quiet .pinch-ring, html.portrait-quiet .interaction-hud { visibility: hidden !important; }
+@media(max-width:600px) {
+  .ability-deck__card { padding: 19px; min-height: 310px; }
+  .deck-controls .little-guide { flex-basis: 100%; justify-content: flex-start; }
+  .portrait-viewer__toolbar { gap: 7px; padding: 4px; font-size: 10px; }
+  .portrait-viewer__toolbar > span { display: none; }
+  .portrait-viewer button { padding: 9px 13px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .ability-deck__card { transition: none; }
+}

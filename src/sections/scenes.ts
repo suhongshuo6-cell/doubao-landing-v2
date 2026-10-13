@@ -80,10 +80,8 @@ export function initScenes(): () => void {
   if (legacy) legacy.hidden = true
 
   const destroyers: Array<() => void> = []
-  let current: DayPart = 'morning'
 
   const apply = (part: DayPart, animate = true): void => {
-    current = part
     section.dataset.day = part
     document.documentElement.dataset.day = part
     dayBar!.querySelectorAll<HTMLButtonElement>('.day-tab').forEach((tab) => {
@@ -155,23 +153,7 @@ export function initScenes(): () => void {
     destroyers.push(() => btn.removeEventListener('click', onClick))
   })
 
-  // 自动轮播时段
-  let auto = 0
-  const startAuto = (): void => {
-    window.clearInterval(auto)
-    if (motionPrefs.reduced) return
-    auto = window.setInterval(() => {
-      const order: DayPart[] = ['morning', 'noon', 'evening']
-      const next = order[(order.indexOf(current) + 1) % 3]!
-      apply(next, true)
-    }, 9000)
-  }
-  startAuto()
-  destroyers.push(() => window.clearInterval(auto))
-
-  // 用户点击后重置计时
-  dayBar.addEventListener('click', () => startAuto())
-
+  // The visitor controls the time of day; never advance underneath a drag.
   apply('morning', false)
 
   // 原有气泡 spring（对 day-stage）

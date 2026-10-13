@@ -10,6 +10,7 @@ import './styles/v2.css'
 import './styles/refinement.css'
 import './styles/immersive.css'
 import './styles/loading.css'
+import './styles/coexistence.css'
 
 import gsap from 'gsap'
 
@@ -26,6 +27,7 @@ import { initProgressRail } from './ui/progressRail'
 import { initContentSections, initStageSections } from './sections'
 import { initV2 } from './sections/v2'
 import { initImmersive } from './sections/immersive'
+import { initCoexistence } from './sections/coexistence'
 import { createStage2d } from './fx/stage2d'
 import { initAskbar } from './ui/askbar'
 import { initSpectacle } from './motion/spectacle'
@@ -95,6 +97,7 @@ function boot(): void {
   initContentSections({ scroll, loop })
   initV2(scroll)
   initImmersive(scroll)
+  initCoexistence(scroll, anchorMap)
   initSpectacle({ loop })
   initFeedback(loop)
   initVelocityMarquee(scroll, loop)

@@ -17,9 +17,7 @@
 .boot-spark--two { right: 151px; top: 27px; font-size: 12px; animation-delay: -2s; }
 .boot-mascot { position: relative; z-index: 1; filter: drop-shadow(0 16px 16px rgba(123,88,49,.08)); touch-action: manipulation; outline-offset: 9px; border-radius: 42%; }
 .boot-mascot:hover { filter: drop-shadow(0 16px 20px rgba(153,97,48,.14)); }
-.boot-bean-eyes { transform-box: fill-box; transform-origin: center; animation: boot-blink 4.8s ease-in-out infinite; }
-.boot-bean-pupils { transform: translate(var(--boot-look-x,0px),var(--boot-look-y,0px)); transition: transform .18s ease-out; }
-.boot-scarf-tail { transform-origin: 76px 96px; animation: boot-scarf 3.6s ease-in-out infinite; }
+.boot-mascot img { display: block; box-shadow: 0 0 0 8px rgba(255,255,255,.55), 0 18px 45px rgba(111,142,176,.16); transform: perspective(500px) rotateY(var(--boot-look-x,0deg)) rotateX(var(--boot-look-y,0deg)); }
 .boot-title { color: #322e27; line-height: 1.25; }
 .boot-subtitle { letter-spacing: .03em; }
 .boot-greeting { min-height: 18px; font-family: var(--font-mono,monospace); }
@@ -31,8 +29,6 @@
 .boot-veil.is-ready .boot-orbit__path { border-color: rgba(193,101,67,.3); transition: border-color .4s; }
 .boot-veil.is-ready .boot-thought { background: rgba(255,253,248,.95); transition: background .4s; }
 @keyframes boot-thought { 0%,100% { translate: 0 4px; } 50% { translate: 0 -5px; } }
-@keyframes boot-blink { 0%,41%,45%,100% { scale: 1 1; } 43% { scale: 1 .08; } }
-@keyframes boot-scarf { 0%,100% { rotate: -6deg; } 50% { rotate: 8deg; } }
 @keyframes boot-spark { 0%,100% { scale: .85; opacity: .35; } 50% { scale: 1.12; opacity: .75; } }
 @media(max-width:600px) {
   .boot-thought { font-size: 9px; padding: 8px 11px; gap: 5px; }
@@ -43,7 +39,7 @@
   .boot-spark--two { right: 85px; top: 14px; }
   .boot-orbit__path { height: 100px; }
   .boot-orbit__path--tilted { height: 185px; }
-  .boot-mascot { width: 105px; height: 133px; }
+  .boot-mascot { width: 112px; height: 112px; }
 }
 @media(max-height:650px) {
   .boot-orbit { height: 175px; }
@@ -53,6 +49,7 @@
   .boot-progress { bottom: 22px; }
 }
 @media(prefers-reduced-motion:reduce) {
-  .boot-thought,.boot-bean-eyes,.boot-scarf-tail,.boot-spark { animation: none; }
-  .boot-bean-pupils,.boot-steps span { transition: none; }
+  .boot-thought,.boot-mascot img,.boot-spark { animation: none; }
+  .boot-steps span { transition: none; }
+  .boot-mascot img { transform: none; }
 }

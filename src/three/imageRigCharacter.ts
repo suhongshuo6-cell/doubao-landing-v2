@@ -295,10 +295,12 @@ export class ImageRigCharacter implements CharacterRig {
     // The full-body photos retain their original studio background. Fit height
     // rather than the old matte's oversized bounds, keeping head and toes visible.
     if (layer.viewIndex >= 0) {
-      const sy = 1.14
+      // Reserve a quiet strip below the feet for the viewer controls.
+      const quiet = document.documentElement.classList.contains('portrait-quiet')
+      const sy = 1.14 * (quiet ? innerHeight / Math.max(240, innerHeight - 56) : 1)
       const sx = sy * this.aspect / PLATE_ASPECT
       layer.uniforms.uUvScale.value.set(sx, sy)
-      layer.uniforms.uUvOffset.value.set(.51 - this.axis * sx, .5 - sy * .5)
+      layer.uniforms.uUvOffset.value.set(.51 - this.axis * sx, .5 - sy * (.5 + (quiet ? 28 / innerHeight : 0)))
       return
     }
     // 不做分层抠像的板（脸部特写人像占满画面）没有 alpha 边，
@@ -424,7 +426,7 @@ export class ImageRigCharacter implements CharacterRig {
           continue
         }
         // 移动端的取景每帧重算：不依赖 resize 的触发时序，避免用到上一档视口的比例
-        if (motionPrefs.tier === 'mobile') this.applyCrop(layer)
+        if (motionPrefs.tier === 'mobile' || isBody) this.applyCrop(layer)
         un.uOpacity.value =
           isBody && layer.viewIndex >= 0 ? Number(layer.viewIndex === selectedView) : 1
         un.uFocus.value = motionPrefs.reduced ? 0 : Math.max(this.smoothFocus, isBody ? turning * .8 : 0)

@@ -26,7 +26,7 @@ export function initBootVeil(): BootVeil {
   let failedStage = false, opening = false, disposed = false
   let resolveOpen: () => void = () => undefined
   const whenOpen = new Promise<void>(resolve => { resolveOpen = resolve })
-  const hiddenContent = Array.from(document.querySelectorAll<HTMLElement>('main, header.nav, footer, .skip, .rail'))
+  const hiddenContent = Array.from(document.querySelectorAll<HTMLElement>('main, header.nav, footer, .skip, .rail, #storyProgress, #experiencePass'))
   const inertBefore = hiddenContent.map(el => el.inert)
   const restoration = history.scrollRestoration
   history.scrollRestoration = 'manual'
@@ -127,7 +127,7 @@ export function initBootVeil(): BootVeil {
   })
   let greetingTimer = 0
   listen(mascot, 'click', () => {
-    greeting.textContent = ['收到你的招呼啦。', '围巾系好了，马上见。', '把好奇心也带上吧。'][Math.floor(Math.random() * 3)]!
+    greeting.textContent = ['收到你的招呼啦。', '带上一点灵感，马上见。', '把好奇心也带上吧。'][Math.floor(Math.random() * 3)]!
     if (!motionPrefs.reduced) mascot.animate([{ transform: 'scale(1,1)' }, { transform: 'scale(1.13,.87) rotate(-7deg)' }, { transform: 'scale(.96,1.06) rotate(3deg)' }, { transform: 'scale(1,1)' }], { duration: 560, easing: 'ease-out' })
     window.clearTimeout(greetingTimer)
     greetingTimer = window.setTimeout(() => { greeting.textContent = '点一下，先打个招呼' }, 2200)
@@ -136,8 +136,8 @@ export function initBootVeil(): BootVeil {
   listen(veil, 'pointermove', event => {
     if (motionPrefs.reduced) return
     const pointer = event as PointerEvent
-    veil.style.setProperty('--boot-look-x', `${((pointer.clientX / innerWidth - .5) * 4).toFixed(2)}px`)
-    veil.style.setProperty('--boot-look-y', `${((pointer.clientY / innerHeight - .5) * 3).toFixed(2)}px`)
+    veil.style.setProperty('--boot-look-x', `${((pointer.clientX / innerWidth - .5) * 4).toFixed(2)}deg`)
+    veil.style.setProperty('--boot-look-y', `${((pointer.clientY / innerHeight - .5) * -3).toFixed(2)}deg`)
   })
   listen(veil, 'keydown', event => {
     const key = event as KeyboardEvent
