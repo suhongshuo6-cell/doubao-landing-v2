@@ -11,7 +11,7 @@ const results = [], errors = []
 const load = async page => {
   page.on('pageerror', error => errors.push(error.message))
   await page.goto(base, { waitUntil: 'networkidle' })
-  await page.waitForFunction(() => window.__DOUBAO?.state().ready)
+  await page.waitForFunction(() => document.documentElement.dataset.bootState === 'entered' && window.__DOUBAO?.character?.ready)
   await page.waitForTimeout(900)
 }
 const chapter = async (page, id, extra = 0) => {

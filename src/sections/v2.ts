@@ -54,6 +54,13 @@ export function initV2(scroll: ScrollController): () => void {
     syncMotion()
   }
   motion?.addEventListener('click', toggleMotion)
+  const pausePortrait = (): void => {
+    paused = true
+    try { sessionStorage.setItem('doubao-portrait-playback-v2', 'paused') } catch { /* optional */ }
+    syncMotion()
+  }
+  document.addEventListener('doubao:pause-portrait', pausePortrait)
+  cleaners.push(() => document.removeEventListener('doubao:pause-portrait', pausePortrait))
   cleaners.push(() => motion?.removeEventListener('click', toggleMotion))
   syncMotion()
   const mq = window.matchMedia('(prefers-reduced-motion: reduce)')

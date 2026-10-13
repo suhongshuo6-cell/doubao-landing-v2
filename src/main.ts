@@ -9,6 +9,7 @@ import './styles/stage.css'
 import './styles/v2.css'
 import './styles/refinement.css'
 import './styles/immersive.css'
+import './styles/loading.css'
 
 import gsap from 'gsap'
 
@@ -65,12 +66,14 @@ const force =
 
 function boot(): void {
   /* ═══════════ 阶段 0：开场加载幕（暗房显影 → iris 揭幕） ═══════════ */
-  initBootVeil()
+  const bootVeil = initBootVeil()
 
   /* ═══════════ 阶段 1：不依赖 three，立刻跑 ═══════════ */
 
   const loop = createFrameLoop()
   const scroll = createScroll()
+  scroll.lenis?.stop()
+  void bootVeil.whenOpen.then(() => { scroll.lenis?.start(); scroll.lenis?.resize(); ScrollTrigger.refresh(); anchorMap.refresh() })
   initVelocityWarp(scroll, loop)
 
   // 锚点必须在**布局最终态**下测量：字体晚到、pin 生成的 spacer 都会改变文档高度。
@@ -241,18 +244,17 @@ function boot(): void {
   // 调试：?p=0.36 直接停在某个取景进度（布局与 pin 稳定后再跳）
   const startP = Number(params.get('p'))
   if (params.has('p') && Number.isFinite(startP)) {
-    window.setTimeout(() => {
+    void bootVeil.whenOpen.then(() => window.setTimeout(() => {
       scroll.scrollTo(anchorMap.toScroll(Math.min(Math.max(startP, 0), 1)), { immediate: true })
       ScrollTrigger.refresh()
-    }, 400)
+    }, 400))
   }
 
   /* ═══════════ 阶段 2：3D 层异步进场 ═══════════ */
   void (async () => {
-    const THREE = await import('three')
-    const { createStage } = await import('./three/stage')
-    const { createCharacter, DEFAULT_METRICS } = await import('./three/character')
-    const { createCameraRig } = await import('./three/cameraRig')
+    const [THREE, { createStage }, { createCharacter, DEFAULT_METRICS }, { createCameraRig }, { FaceVideoLayer }] = await Promise.all([
+      import('three'), import('./three/stage'), import('./three/character'), import('./three/cameraRig'), import('./three/faceVideo'),
+    ])
 
     const canvasEl = document.getElementById('stage')
     if (!(canvasEl instanceof HTMLCanvasElement)) throw new Error('缺少 #stage canvas')
@@ -271,7 +273,6 @@ function boot(): void {
     const faceSrc = document.getElementById('faceSrc') as HTMLVideoElement | null
     const faceGif = document.getElementById('faceGif') as HTMLImageElement | null
     if (faceSrc) {
-      const { FaceVideoLayer } = await import('./three/faceVideo')
       faceLayer = new FaceVideoLayer({
         camera: stage.camera,
         video: faceSrc,
@@ -282,12 +283,12 @@ function boot(): void {
     /* ---- 角色：双轨资产自动探测 ---- */
     let character: CharacterRig | null = null
 
-    createCharacter({
+    void bootVeil.whenOpen.then(() => createCharacter({
       renderer: stage.renderer,
       camera: stage.camera,
       force,
       onFallback: (reason) => console.info('[character] 降级：', reason),
-    })
+    }))
       .then((rigged) => {
         character = rigged
         rigged.object3d.visible = false
@@ -311,13 +312,13 @@ function boot(): void {
             runIntro()
           }
           document.addEventListener('doubao:veil-open', openOnce)
-          window.setTimeout(openOnce, 10000) // 兜底：加载幕异常也不至于不开场
+          if (document.documentElement.dataset.bootState === 'entered') openOnce()
         }
       })
       .catch((error: unknown) => {
         console.error('[character] 装配失败', error)
         document.documentElement.dataset.character = 'none'
-        document.dispatchEvent(new CustomEvent('doubao:stage-failed'))
+        document.dispatchEvent(new CustomEvent('doubao:stage-failed', { detail: { scope: 'body' } }))
       })
 
     if (!force) {
@@ -659,7 +660,13 @@ function boot(): void {
 
       updateQuality(dt)
       canvas.style.visibility = (character || faceLayer?.visible) ? 'visible' : 'hidden'
-      if (character || faceLayer?.visible) stage.render()
+      if (character || faceLayer?.visible) {
+        stage.render()
+        if (faceLayer?.visible && faceLayer.frameMode !== 'pending' && !stage.renderer.getContext().isContextLost()) {
+          rootEl.dataset.faceRendered = '1'
+          bootVeil.painted(faceLayer.frameMode, faceLayer.staticMode)
+        }
+      }
     })
 
     // 开场推近期间不做画质降档，否则会把"虚化"误判成掉帧
@@ -771,7 +778,7 @@ function boot(): void {
     // 3D 层炸了也不能连累文字内容 —— 内容在阶段 1 就已经装好了
     console.error('[stage] 3D 层装配失败', error)
     document.documentElement.dataset.character = 'none'
-    document.dispatchEvent(new CustomEvent('doubao:stage-failed'))
+    document.dispatchEvent(new CustomEvent('doubao:stage-failed', { detail: { scope: 'portrait' } }))
   })
 }
 
@@ -781,4 +788,5 @@ try {
   // 兜底：任何一步炸掉，都要保证文字内容可见，而不是留一个空白页
   console.error('[boot] 失败', error)
   document.documentElement.classList.remove('js')
+  document.dispatchEvent(new CustomEvent('doubao:stage-failed', { detail: { scope: 'portrait' } }))
 }

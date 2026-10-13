@@ -1,0 +1,58 @@
+.boot-veil { z-index: 10000; display: flex; align-items: center; justify-content: center; flex-direction: column; padding: 76px 24px 130px; pointer-events: auto; opacity: 1; isolation: isolate; background: #f4f0e8; transition: none; -webkit-mask-image: none; mask-image: none; }
+.boot-veil::before { content: ''; position: absolute; inset: 0; z-index: -1; background: radial-gradient(ellipse at 50% 40%,rgba(255,255,255,.75),transparent 48%),radial-gradient(ellipse at 85% 80%,rgba(219,171,116,.09),transparent 42%); pointer-events: none; }
+.boot-veil:focus { outline: none; }
+.boot-top { max-width: none; padding: 0; }
+.boot-top b { font-weight: 550; }
+.boot-scene { position: relative; }
+.boot-orbit__path { position: absolute; width: 390px; max-width: 90%; height: 130px; border: 1px solid rgba(180,144,105,.22); border-radius: 50%; transform: rotate(-13deg); }
+.boot-orbit__path--tilted { width: 195px; height: 210px; transform: rotate(28deg); border-color: rgba(196,96,63,.1); }
+.boot-orbit__path::after { content: ''; position: absolute; width: 5px; height: 5px; border-radius: 50%; background: #cd8261; top: 27px; left: 30px; box-shadow: 0 0 0 5px rgba(205,130,97,.05); }
+.boot-thought { position: absolute; display: inline-flex; gap: 8px; align-items: center; font-size: 10px; padding: 10px 15px; border: 1px solid rgba(185,163,131,.2); border-radius: 99px; background: rgba(255,252,245,.8); color: #8b7660; box-shadow: 0 10px 25px -15px rgba(117,81,42,.3); backdrop-filter: blur(6px); animation: boot-thought 5s ease-in-out infinite; }
+.boot-thought i { font-style: normal; font-size: 15px; color: #bb6648; }
+.boot-thought--one { left: 40px; top: 74px; rotate: -8deg; }
+.boot-thought--two { right: 32px; top: 44px; rotate: 8deg; animation-delay: -1.8s; }
+.boot-thought--three { right: 52px; bottom: 40px; rotate: -5deg; animation-delay: -3.3s; }
+.boot-spark { position: absolute; font: 23px Georgia,serif; color: #c69b72; animation: boot-spark 4s ease-in-out infinite; }
+.boot-spark--one { left: 123px; bottom: 44px; }
+.boot-spark--two { right: 151px; top: 27px; font-size: 12px; animation-delay: -2s; }
+.boot-mascot { position: relative; z-index: 1; filter: drop-shadow(0 16px 16px rgba(123,88,49,.08)); touch-action: manipulation; outline-offset: 9px; border-radius: 42%; }
+.boot-mascot:hover { filter: drop-shadow(0 16px 20px rgba(153,97,48,.14)); }
+.boot-bean-eyes { transform-box: fill-box; transform-origin: center; animation: boot-blink 4.8s ease-in-out infinite; }
+.boot-bean-pupils { transform: translate(var(--boot-look-x,0px),var(--boot-look-y,0px)); transition: transform .18s ease-out; }
+.boot-scarf-tail { transform-origin: 76px 96px; animation: boot-scarf 3.6s ease-in-out infinite; }
+.boot-title { color: #322e27; line-height: 1.25; }
+.boot-subtitle { letter-spacing: .03em; }
+.boot-greeting { min-height: 18px; font-family: var(--font-mono,monospace); }
+.boot-steps { letter-spacing: .05em; }
+.boot-steps span { transition: opacity .3s, color .3s; }
+.boot-steps .is-done { color: #a75d40; }
+.boot-count { font: 10px var(--font-mono,monospace); font-weight: 400; color: #a98363; letter-spacing: .05em; }
+.boot-actions { font-size: 11px; }
+.boot-veil.is-ready .boot-orbit__path { border-color: rgba(193,101,67,.3); transition: border-color .4s; }
+.boot-veil.is-ready .boot-thought { background: rgba(255,253,248,.95); transition: background .4s; }
+@keyframes boot-thought { 0%,100% { translate: 0 4px; } 50% { translate: 0 -5px; } }
+@keyframes boot-blink { 0%,41%,45%,100% { scale: 1 1; } 43% { scale: 1 .08; } }
+@keyframes boot-scarf { 0%,100% { rotate: -6deg; } 50% { rotate: 8deg; } }
+@keyframes boot-spark { 0%,100% { scale: .85; opacity: .35; } 50% { scale: 1.12; opacity: .75; } }
+@media(max-width:600px) {
+  .boot-thought { font-size: 9px; padding: 8px 11px; gap: 5px; }
+  .boot-thought--one { left: 0; top: 58px; }
+  .boot-thought--two { right: 0; top: 36px; }
+  .boot-thought--three { right: 6px; bottom: 28px; }
+  .boot-spark--one { left: 55px; bottom: 29px; }
+  .boot-spark--two { right: 85px; top: 14px; }
+  .boot-orbit__path { height: 100px; }
+  .boot-orbit__path--tilted { height: 185px; }
+  .boot-mascot { width: 105px; height: 133px; }
+}
+@media(max-height:650px) {
+  .boot-orbit { height: 175px; }
+  .boot-title { font-size: 34px; margin-bottom: 8px; }
+  .boot-greeting { margin-top: 10px; }
+  .boot-thought--three { bottom: 4px; }
+  .boot-progress { bottom: 22px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .boot-thought,.boot-bean-eyes,.boot-scarf-tail,.boot-spark { animation: none; }
+  .boot-bean-pupils,.boot-steps span { transition: none; }
+}

@@ -85,6 +85,7 @@ export class FaceVideoLayer {
   private failed = false
   private playPending = false
   private strength = 0
+  private currentFrame: 'pending' | 'poster' | 'video' = 'pending'
   private readonly onError = (): void => { this.failed = true }
   private readonly onVisibility = (): void => { if (document.hidden) this.video.pause() }
   private readonly onContextLost = (): void => {
@@ -94,6 +95,7 @@ export class FaceVideoLayer {
   constructor(opts: Options) {
     this.camera = opts.camera
     this.video = opts.video
+    this.failed = Boolean(opts.video.error)
     this.poster = new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}video/doubao_face_v3_still.webp`)
     this.poster.colorSpace = THREE.NoColorSpace
     this.videoTexture = new THREE.VideoTexture(opts.video)
@@ -142,6 +144,8 @@ export class FaceVideoLayer {
   }
   get pinchStrength(): number { return this.strength }
   get visible(): boolean { return this.object3d.visible }
+  get frameMode(): 'pending' | 'poster' | 'video' { return this.currentFrame }
+  get staticMode(): boolean { return this.failed || motionPrefs.reduced || document.documentElement.dataset.motion === 'paused' }
   getScreenPoint(sourceX: number, sourceY: number): { x: number; y: number } {
     const uv = this.uniforms.uUvScale.value
     const offset = this.uniforms.uUvOffset.value
@@ -176,12 +180,15 @@ export class FaceVideoLayer {
       if (!this.video.paused) this.video.pause()
     } else if (!this.failed && this.video.paused && !this.playPending) {
       this.playPending = true
-      void this.video.play().catch(() => { this.failed = true }).finally(() => { this.playPending = false })
+      void this.video.play().catch((error: unknown) => {
+        // An intentional pause during buffering cancels play; it is retryable.
+        if (!(error instanceof DOMException && error.name === 'AbortError')) this.failed = true
+      }).finally(() => { this.playPending = false })
     }
     if (!visible) return
     const hasVideo = !this.failed && this.video.readyState >= 2
     this.uniforms.uMap.value = hasVideo ? this.videoTexture : this.poster
-    if (hasVideo || this.poster.image) document.documentElement.dataset.faceRendered = '1'
+    this.currentFrame = hasVideo ? 'video' : ((this.poster.image as HTMLImageElement | undefined)?.naturalWidth ?? 0) > 0 ? 'poster' : 'pending'
     this.strength = this.press.update(dt)
     this.uniforms.uPressStrength.value = frozen ? 0 : this.strength
     this.uniforms.uDrag.value.lerp(this.drag, 1 - Math.exp(-18 * dt))

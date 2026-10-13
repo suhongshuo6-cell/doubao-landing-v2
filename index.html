@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="booting" data-boot-state="waiting">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -10,26 +10,53 @@
       name="description"
       content="一个非官方的豆包致敬单页：动态人物、轻触互动与居中会话体验。个人学习作品，与字节跳动无关。"
     />
+    <link rel="preload" as="image" href="./video/doubao_face_v3_still.webp" fetchpriority="high" />
+    <style>
+      html.booting,html.booting body{overflow:hidden;height:100svh}html.booting main,html.booting header.nav,html.booting footer{visibility:hidden}
+      .boot-veil{position:fixed;inset:0;z-index:10000;background:#f4f0e8;color:#302d28;display:flex;align-items:center;justify-content:center;flex-direction:column;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;text-align:center;padding:76px 24px 130px;box-sizing:border-box}
+      .boot-top{position:absolute;inset:30px 38px auto;display:flex;justify-content:space-between;align-items:center;font-size:10px;letter-spacing:.12em}.boot-top b{font-size:23px;letter-spacing:-.07em}.boot-top span{color:#887869}
+      .boot-scene{width:min(540px,100%)}.boot-orbit{height:260px;position:relative;display:grid;place-items:center}.boot-mascot{width:116px;height:146px;padding:0;border:0;background:none;cursor:pointer}.boot-mascot svg{width:100%;height:100%;overflow:visible;animation:boot-float 3.6s ease-in-out infinite}.boot-title{font-size:48px;font-weight:550;letter-spacing:-.07em;margin:0 0 15px}.boot-subtitle{font-size:13px;line-height:1.8;color:#827363;margin:0}.boot-greeting{font-size:10px;color:#ab8d72;margin:18px 0 0}
+      .boot-progress{position:absolute;bottom:42px;width:min(430px,calc(100% - 64px));font-size:10px;color:#847666}.boot-status{line-height:1.9;margin:0 0 16px}.boot-progress__line{height:2px;background:#ded4c6;overflow:hidden}.boot-progress__line i{display:block;height:100%;background:#bd593e;transform:scaleX(var(--boot-progress,0));transform-origin:left;transition:transform .45s ease}.boot-steps{display:flex;justify-content:space-between;align-items:center;margin-top:14px;font-size:9px}.boot-steps span{opacity:.4}.boot-steps .is-done{opacity:1}.boot-count{font-variant-numeric:tabular-nums}.boot-actions{display:flex;justify-content:center;gap:20px;margin-top:15px}.boot-actions button{font:inherit;background:none;border:0;padding:5px;color:#9d593c;text-decoration:underline;text-underline-offset:4px;cursor:pointer}.boot-actions [hidden]{display:none}
+      @keyframes boot-float{0%,100%{translate:0 5px;rotate:-4deg}50%{translate:0 -8px;rotate:4deg}}@media(max-width:600px){.boot-title{font-size:38px}.boot-top{inset:24px 24px auto}.boot-top span{font-size:8px}.boot-orbit{height:225px}.boot-subtitle{font-size:12px}.boot-progress{bottom:28px}}@media(prefers-reduced-motion:reduce){.boot-mascot svg{animation:none}.boot-progress__line i{transition:none}}
+    </style>
+    <noscript><style>.boot-veil{display:none!important}html.booting,html.booting body{overflow:auto;height:auto}html.booting main,html.booting header.nav,html.booting footer{visibility:visible}</style></noscript>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   </head>
   <body>
-    <!-- ══ 开场加载幕：暗房显影 → iris 揭幕（bootVeil.ts 增强） ══ -->
-    <div id="bootVeil" class="boot-veil" role="status" aria-busy="true" aria-label="页面加载中">
-      <div class="boot-veil__inner" aria-hidden="true">
-        <div class="boot-veil__paper"></div>
-        <img class="boot-veil__photo" id="bootPhoto" alt="" src="./video/doubao_face_v3_still.webp" />
-        <div class="boot-veil__grain"></div>
-        <div class="boot-veil__scan"></div>
-        <div class="boot-veil__frame"><i></i><i></i><i></i><i></i></div>
-        <div class="boot-veil__hud">
-          <span class="boot-veil__mark">豆包</span>
-          <span class="boot-veil__pct" id="bootPct">00</span>
+    <div id="bootVeil" class="boot-veil" role="dialog" aria-modal="true" aria-busy="true" aria-labelledby="bootTitle" aria-describedby="bootStatus" tabindex="-1">
+      <div class="boot-top"><b>豆包</b><span>A LITTLE HELLO / 一场小小的见面</span></div>
+      <div class="boot-scene">
+        <div class="boot-orbit">
+          <div class="boot-orbit__path" aria-hidden="true"></div><div class="boot-orbit__path boot-orbit__path--tilted" aria-hidden="true"></div>
+          <span class="boot-thought boot-thought--one" aria-hidden="true"><i>✳</i> 一点灵感</span><span class="boot-thought boot-thought--two" aria-hidden="true"><i>↗</i> 一点好奇</span><span class="boot-thought boot-thought--three" aria-hidden="true"><i>♡</i> 一点默契</span>
+          <span class="boot-spark boot-spark--one" aria-hidden="true">✧</span><span class="boot-spark boot-spark--two" aria-hidden="true">✦</span>
+          <button id="bootMascot" class="boot-mascot" type="button" aria-label="点点小豆包，打个招呼">
+            <svg viewBox="0 0 116 146" fill="none" aria-hidden="true" focusable="false">
+              <defs><linearGradient id="beanShell" x1="25" y1="20" x2="90" y2="125" gradientUnits="userSpaceOnUse"><stop stop-color="#fffefa"/><stop offset="1" stop-color="#e9dfce"/></linearGradient><linearGradient id="beanScarf" x1="25" y1="82" x2="92" y2="115" gradientUnits="userSpaceOnUse"><stop stop-color="#e97956"/><stop offset="1" stop-color="#b6402f"/></linearGradient></defs>
+              <ellipse class="boot-bean-shadow" cx="58" cy="139" rx="30" ry="5" fill="#b2a18a" opacity=".15"/>
+              <path d="M19 63C19 26 36 9 60 9C87 9 100 32 97 65L93 99C90 122 76 133 56 131C34 130 21 113 19 93V63Z" fill="url(#beanShell)" stroke="#d8cdbc" stroke-width="1.2"/>
+              <path class="boot-scarf-tail" d="M76 96L95 110L88 128L79 125L70 104Z" fill="#bc5037"/>
+              <path d="M20 85C41 97 74 95 95 82L94 100C73 112 40 110 22 100L20 85Z" fill="url(#beanScarf)"/>
+              <path d="M32 91C52 99 73 98 88 91" stroke="#f4a080" stroke-opacity=".65" stroke-linecap="round"/>
+              <g class="boot-bean-eyes"><g class="boot-bean-pupils"><ellipse cx="43" cy="61" rx="3.3" ry="4.5" fill="#3e372c"/><ellipse cx="73" cy="59" rx="3.3" ry="4.5" fill="#3e372c"/><circle cx="44" cy="59.5" r="1" fill="#fff"/><circle cx="74" cy="57.5" r="1" fill="#fff"/></g></g>
+              <ellipse cx="31" cy="72" rx="6" ry="3" fill="#e69b7a" opacity=".25"/><ellipse cx="84" cy="69" rx="6" ry="3" fill="#e69b7a" opacity=".25"/>
+              <path d="M53 74C57 79 62 79 66 73" stroke="#82634b" stroke-width="1.5" stroke-linecap="round"/>
+              <path d="M31 40C35 28 44 22 54 20" stroke="#fffefa" stroke-width="4" stroke-linecap="round" opacity=".8"/>
+            </svg>
+          </button>
         </div>
-        <div class="boot-veil__bar"><i id="bootBar"></i></div>
-        <p class="boot-veil__label" id="bootLabel">显影中 · DEVELOPING</p>
+        <h1 class="boot-title" id="bootTitle">等一个微笑。</h1>
+        <p class="boot-subtitle">她正带着一点灵感，来见你。</p>
+        <p class="boot-greeting" id="bootGreeting">点一下，先打个招呼</p>
       </div>
-      <div class="boot-veil__flash" aria-hidden="true"></div>
+      <div class="boot-progress">
+        <p class="boot-status" id="bootStatus" role="status" aria-live="polite">正在准备，与你见面的那张脸…</p>
+        <div class="boot-progress__line" id="bootProgress" role="progressbar" aria-label="人物准备进度" aria-valuemin="0" aria-valuemax="3" aria-valuenow="0"><i></i></div>
+        <div class="boot-steps" aria-hidden="true"><span data-boot-step="portrait">01 · 微笑</span><span data-boot-step="video">02 · 眨眼</span><span data-boot-step="stage">03 · 见面</span><b class="boot-count" id="bootCount">00 / 03</b></div>
+        <div class="boot-actions"><button id="bootRetry" type="button" hidden onclick="location.reload()">重新加载</button><button id="bootStatic" type="button" hidden>先看静态微笑</button></div>
+      </div>
     </div>
+    <script>setTimeout(function(){if(!document.documentElement.dataset.bootController){document.getElementById('bootStatus').textContent='加载有点慢，点一下重新和她见面。';document.getElementById('bootRetry').hidden=false;}},15000);</script>
 
     <a class="skip" href="#main">跳到主要内容</a>
 

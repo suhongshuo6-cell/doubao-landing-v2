@@ -56,6 +56,7 @@ export function runHeroIntro(): () => void {
   }
 
   const tl = gsap.timeline({
+    paused: root.classList.contains('booting'),
     defaults: { ease: EASE_IN },
     onComplete: () => {
       root.classList.remove('intro-playing')
@@ -144,6 +145,11 @@ export function runHeroIntro(): () => void {
   }
 
   destroyers.push(() => tl.kill())
+  const playIntro = (): void => { tl.play() }
+  if (root.classList.contains('booting')) {
+    document.addEventListener('doubao:veil-open', playIntro, { once: true })
+    destroyers.push(() => document.removeEventListener('doubao:veil-open', playIntro))
+  }
 
   return () => {
     for (const d of destroyers.reverse()) d()

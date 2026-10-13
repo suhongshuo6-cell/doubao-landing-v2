@@ -1,0 +1,137 @@
+import { chromium } from 'playwright'
+import assert from 'node:assert/strict'
+import { mkdir, writeFile } from 'node:fs/promises'
+import { fileURLToPath } from 'node:url'
+
+const base = process.argv[2] || 'http://127.0.0.1:4173'
+const out = fileURLToPath(new URL('../.preview-out/loading/', import.meta.url))
+await mkdir(out, { recursive: true })
+const browser = await chromium.launch({ channel: 'chrome', headless: true })
+const results = [], errors = []
+const makePage = async options => {
+  const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, ...options })
+  page.on('pageerror', error => errors.push(error.message))
+  return page
+}
+const entered = page => page.waitForFunction(() => document.documentElement.dataset.bootState === 'entered')
+const hold = async (page, match) => {
+  let release
+  const gate = new Promise(resolve => { release = resolve })
+  await page.route(match, async route => { await gate; await route.continue().catch(() => {}) })
+  return release
+}
+try {
+  const video = await makePage()
+  const releaseVideo = await hold(video, '**/*.mp4')
+  let bodyRequests = 0
+  video.on('request', request => { if (/img\/doubao_(neck|waist|legs|front|side|back)/.test(request.url())) bodyRequests++ })
+  await video.goto(base, { waitUntil: 'domcontentloaded' })
+  await video.waitForFunction(() => document.documentElement.dataset.bootController === '1')
+  await video.waitForTimeout(2300)
+  assert.equal(await video.locator('#bootVeil').isVisible(), true, 'Slow video must hold the entry')
+  assert.equal(await video.locator('main').evaluate(el => el.inert), true)
+  assert.equal(bodyRequests, 0, 'Body photographs must not compete with the portrait')
+  await video.mouse.wheel(0, 900)
+  assert.equal(await video.evaluate(() => scrollY), 0, 'Loading must keep the face in its initial framing')
+  await video.locator('#bootMascot').click()
+  assert.notEqual(await video.locator('#bootGreeting').textContent(), '点一下，先打个招呼')
+  await video.screenshot({ path: out + '01-desktop-waiting.png' })
+  releaseVideo(); await entered(video)
+  assert.equal(await video.evaluate(() => window.__DOUBAO.faceLayer.frameMode), 'video')
+  assert.equal(await video.locator('#bootVeil').count(), 0)
+  assert.equal(await video.locator('main').evaluate(el => el.inert), false)
+  await video.waitForTimeout(900)
+  await video.screenshot({ path: out + '02-portrait-entered.png' })
+  await video.waitForFunction(() => window.__DOUBAO.character?.ready)
+  assert.ok(bodyRequests > 0)
+  results.push('Slow video: interactive loader stays until an actual video frame is rendered; body loading waits; scroll and focus unlock')
+  await video.close()
+
+  const gpu = await makePage()
+  const releaseGpu = await hold(gpu, /\/assets\/three-[\w-]+\.js$/)
+  await gpu.goto(base, { waitUntil: 'domcontentloaded' })
+  await gpu.waitForTimeout(1800)
+  assert.equal(await gpu.locator('#bootVeil').isVisible(), true, 'Decoded video alone cannot dismiss the loader')
+  releaseGpu(); await entered(gpu)
+  results.push('Renderer delayed: entry waits for the portrait to reach the canvas')
+  await gpu.close()
+
+  const early = await makePage()
+  const releaseEntry = await hold(early, /\/assets\/index-[\w-]+\.js$/)
+  await early.goto(base, { waitUntil: 'commit' })
+  await early.locator('#bootVeil').waitFor({ state: 'visible' })
+  await early.waitForTimeout(600)
+  assert.equal(await early.locator('#bootVeil').isVisible(), true)
+  assert.equal(await early.evaluate(() => document.documentElement.dataset.bootController), undefined)
+  assert.equal(await early.locator('main').evaluate(el => getComputedStyle(el).visibility), 'hidden')
+  await early.screenshot({ path: out + '03-before-javascript.png' })
+  releaseEntry(); await entered(early)
+  results.push('Before JavaScript: inline loader is already visible and hides unfinished content')
+  await early.close()
+
+  const mobile = await makePage({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true })
+  const releaseMobile = await hold(mobile, '**/*.mp4')
+  await mobile.goto(base, { waitUntil: 'domcontentloaded' })
+  await mobile.waitForTimeout(1400)
+  const title = await mobile.locator('#bootTitle').boundingBox(), progress = await mobile.locator('.boot-progress').boundingBox()
+  assert.ok(title.y + title.height < progress.y - 20)
+  assert.equal(await mobile.evaluate(() => document.documentElement.scrollWidth > innerWidth), false)
+  await mobile.screenshot({ path: out + '04-mobile-waiting.png' })
+  releaseMobile(); await entered(mobile)
+  results.push('390px: loader composition fits, with no overlap or horizontal overflow')
+  await mobile.close()
+
+  const fallback = await makePage()
+  await fallback.route('**/*.mp4', route => route.abort())
+  await fallback.goto(base, { waitUntil: 'domcontentloaded' }); await entered(fallback)
+  assert.equal(await fallback.evaluate(() => document.documentElement.dataset.bootMode), 'poster')
+  assert.equal(await fallback.evaluate(() => document.documentElement.dataset.faceRendered), '1')
+  results.push('Video failure: a genuinely loaded and rendered static portrait permits entry')
+  await fallback.close()
+
+  const noGpu = await makePage()
+  await noGpu.route(/\/assets\/three-[\w-]+\.js$/, route => route.abort())
+  await noGpu.goto(base, { waitUntil: 'domcontentloaded' }); await entered(noGpu)
+  assert.ok(await noGpu.locator('.hero-poster').evaluate(image => image.complete && image.naturalWidth > 0))
+  assert.equal(await noGpu.evaluate(() => document.documentElement.dataset.faceRendered), '0')
+  results.push('Renderer failure: decoded DOM portrait remains available')
+  await noGpu.close()
+
+  const reduced = await makePage({ reducedMotion: 'reduce' })
+  const releaseReduced = await hold(reduced, '**/*.mp4')
+  await reduced.goto(base, { waitUntil: 'domcontentloaded' }); await entered(reduced)
+  assert.equal(await reduced.evaluate(() => document.documentElement.dataset.bootMode), 'poster')
+  assert.equal(await reduced.evaluate(() => document.getElementById('faceSrc').paused), true)
+  releaseReduced()
+  results.push('Reduced motion: static portrait readiness, no forced video or looping loader')
+  await reduced.close()
+
+  const missing = await makePage()
+  await missing.route('**/*.mp4', route => route.abort())
+  await missing.route('**/doubao_face_v3_still.webp', route => route.abort())
+  await missing.goto(base, { waitUntil: 'domcontentloaded' })
+  await missing.waitForTimeout(1900)
+  assert.equal(await missing.locator('#bootVeil').isVisible(), true)
+  assert.equal(await missing.locator('#bootRetry').isVisible(), true)
+  assert.notEqual(await missing.evaluate(() => document.documentElement.dataset.bootState), 'entered')
+  results.push('Missing portrait: no blank-page handoff; retry is available')
+  await missing.close()
+
+  const slow = await makePage()
+  const releaseSlow = await hold(slow, '**/*.mp4')
+  await slow.goto(base, { waitUntil: 'domcontentloaded' })
+  await slow.locator('#bootStatic').waitFor({ state: 'visible', timeout: 15000 })
+  assert.equal(await slow.locator('#bootVeil').isVisible(), true)
+  await slow.locator('#bootStatic').click(); await entered(slow)
+  assert.equal(await slow.evaluate(() => document.documentElement.dataset.bootMode), 'poster')
+  assert.equal(await slow.locator('#motionToggle').textContent(), '播放视频')
+  releaseSlow()
+  await slow.locator('#motionToggle').click()
+  await slow.waitForFunction(() => window.__DOUBAO?.faceLayer.frameMode === 'video' && !document.getElementById('faceSrc').paused)
+  results.push('Very slow connection: no automatic early entry; user may choose the already loaded still')
+  await slow.close()
+
+  assert.deepEqual(errors, [])
+  await writeFile(out + 'report.json', JSON.stringify({ results, errors }, null, 2))
+  console.log(JSON.stringify({ passed: results.length, results, screenshots: out }, null, 2))
+} finally { await browser.close() }
